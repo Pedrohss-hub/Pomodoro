@@ -8,58 +8,28 @@
 <title>&#8203;</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🍅%3C/text%3E%3C/svg%3E">
 <!-- PWA -->
-<meta name="theme-color" content="#d9432f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#fff3ee">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Estudos">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>
+// Faz a barra de status do celular/janela ter a mesma cor do fundo da página (e acompanhar o tema)
 (function () {
-  // Desenha o ícone (🍅 sobre fundo sólido, ocupa o quadrado todo = compatível com "maskable")
-  function icone(tam, cb) {
-    try {
-      var c = document.createElement('canvas'); c.width = c.height = tam;
-      var x = c.getContext('2d');
-      x.fillStyle = '#fff3ee'; x.fillRect(0, 0, tam, tam);
-      x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.font = Math.round(tam * 0.55) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-      x.fillText('🍅', tam / 2, tam / 2 + tam * 0.04);
-      c.toBlob(function (b) { cb(b ? URL.createObjectURL(b) : null, c.toDataURL('image/png')); }, 'image/png');
-    } catch (e) { cb(null, null); }
+  function ajusta() {
+    var cor = getComputedStyle(document.body).backgroundColor;
+    if (!cor || cor === 'rgba(0, 0, 0, 0)') cor = getComputedStyle(document.documentElement).backgroundColor;
+    if (!cor || cor === 'rgba(0, 0, 0, 0)') return;
+    document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) { m.setAttribute('content', cor); });
   }
-
-  var base = new URL('./', location.href).href; // pasta do projeto no GitHub Pages
-  icone(192, function (u192, d192) {
-    icone(512, function (u512) {
-      // ícone do iPhone/iPad (apple-touch-icon)
-      if (d192) {
-        var a = document.createElement('link');
-        a.rel = 'apple-touch-icon'; a.href = d192;
-        document.head.appendChild(a);
-      }
-      if (!u192 || !u512) return;
-      var manifest = {
-        id: base,
-        name: 'Painel de Estudos',
-        short_name: 'Estudos',
-        description: 'Pomodoro, grade de estudos e gráficos.',
-        lang: 'pt-BR',
-        start_url: base,
-        scope: base,
-        display: 'standalone',
-        orientation: 'any',
-        background_color: '#fff3ee',
-        theme_color: '#d9432f',
-        icons: [
-          { src: u192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-          { src: u512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
-        ]
-      };
-      var m = document.createElement('link');
-      m.rel = 'manifest';
-      m.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
-      document.head.appendChild(m);
-    });
+  window.addEventListener('load', function () {
+    ajusta();
+    var o = new MutationObserver(ajusta);
+    o.observe(document.documentElement, { attributes: true });
+    o.observe(document.body, { attributes: true });
+    if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ajusta);
   });
 })();
 </script>

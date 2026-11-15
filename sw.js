@@ -1,11 +1,14 @@
 /* Service worker do Painel de Estudos
    Para forçar a atualização do app em todos os aparelhos, mude o número da VERSAO. */
-const VERSAO = 'v1';
+const VERSAO = 'v2';
 const CACHE = 'painel-estudos-' + VERSAO;
 
 const ARQUIVOS = [
   './',
   './index.html',
+  './manifest.webmanifest',
+  './icon-192.png',
+  './icon-512.png',
   './css/base.css?v=1',
   './css/grade.css?v=1',
   './css/planilha.css?v=1',
