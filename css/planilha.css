@@ -1,0 +1,17 @@
+/* Configuração da planilha (o que enviar e de onde ler). */
+  /* configuração da planilha */
+  #dlg-config { max-height: 92vh; overflow: auto; }
+  .sh { margin-top: 1rem; }
+  .sh h3 { margin: 1.1rem 0 .4rem; font-size: .95rem; }
+  .sh-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .sh-tab { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .sh-tab td { padding: .3rem .3rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .sh-tab small { display: block; color: var(--soft); font-size: .75rem; }
+  .sh-tab input { width: 4.5rem; text-align: center; text-transform: uppercase; }
+  .sh select { width: 100%; padding: .6rem .7rem; border: 1.5px solid var(--line); border-radius: calc(.6rem * var(--raio)); background: var(--card); font: inherit; color: inherit; }
+  .sh-btns { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+  .sh-btns button { padding: calc(.5rem * var(--btn)) calc(.9rem * var(--btn)); border: 1.5px solid var(--ink); border-radius: calc(.6rem * var(--raio)); background: transparent; cursor: pointer; font-weight: 600; font-size: calc(.85rem * var(--btn)); }
+  #sh-msg { margin: .6rem 0 0; white-space: pre-wrap; }
+  #sh-msg.erro { color: var(--erro); font-weight: 600; }
+  #sh-msg.ok { color: var(--ok); font-weight: 600; }
+  @media (max-width: 40rem) { .sh-2 { grid-template-columns: 1fr; } }

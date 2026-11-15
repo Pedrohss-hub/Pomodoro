@@ -1,0 +1,24 @@
+/* Tamanho do texto, botão e painel de Aparência. */
+  html { font-size: calc(100% * var(--escala)); }
+  .topo-global { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .5rem 1rem; margin-bottom: 1.25rem; }
+  .topo-global .abas { margin-bottom: 0; }
+  .ap-abrir { display: inline-flex; align-items: center; gap: .45rem; padding: calc(.5rem * var(--btn)) calc(1rem * var(--btn)); font-size: calc(1em * var(--btn)); border: 1.5px solid var(--line); border-radius: calc(999px * var(--raio)); background: var(--card); color: var(--ink); font-weight: 600; cursor: pointer; }
+  .ap-abrir:hover { border-color: var(--cor); }
+  #dlg-aparencia { position: fixed; inset: 1rem 1rem 1rem auto; margin: 0; z-index: 30; width: min(25rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; box-shadow: 0 12px 40px rgba(35, 32, 58, .3); }
+  #dlg-aparencia details { margin-top: .75rem; }
+  #dlg-aparencia .dica { margin: .4rem 0 0; }
+  .ap-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .ap-tema { display: inline-flex; align-items: center; gap: .45rem; padding: .4rem .8rem; border: 1.5px solid var(--line); border-radius: calc(999px * var(--raio)); background: var(--card); cursor: pointer; font-weight: 600; }
+  .ap-tema i { display: inline-block; width: .8rem; height: .8rem; border-radius: 50%; border: 1px solid var(--line); }
+  .ap-tema:hover { border-color: var(--cor); }
+  .ap-h { margin: .9rem 0 .4rem; font-size: .8rem; font-weight: 600; color: var(--soft); }
+  .ap-h:first-child { margin-top: 0; }
+  .ap-grade-cores { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .8rem; }
+  .ap-cor { display: flex; align-items: center; gap: .5rem; font-size: .85rem; }
+  .ap-cor input { flex: none; width: 2rem; height: 2rem; padding: 0; border: 1.5px solid var(--line); border-radius: .5rem; background: none; cursor: pointer; }
+  .ap-med { display: grid; grid-template-columns: 1fr auto; gap: .2rem .6rem; font-size: .85rem; margin-bottom: .8rem; }
+  .ap-med output { color: var(--soft); font-variant-numeric: tabular-nums; }
+  .ap-med input { grid-column: 1 / -1; width: 100%; accent-color: var(--cor); }
+  .ap-linha { display: flex; gap: .5rem; align-items: center; margin-top: .5rem; }
+  #ap-json { width: 100%; font: .8rem ui-monospace, Menlo, Consolas, monospace; padding: .6rem; border: 1.5px solid var(--line); border-radius: .6rem; background: var(--card); color: var(--ink); resize: vertical; }
+  .ap-rodape { margin-top: 1rem; display: flex; justify-content: flex-end; }

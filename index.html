@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Pomodoro com envio para o Google Sheets, planejador de grade e gráficos de estudo.">
+<title>&#8203;</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🍅%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;800&display=swap" rel="stylesheet">
+<script src="js/tema.js?v=1"></script>
+<link rel="stylesheet" href="css/base.css?v=1">
+<link rel="stylesheet" href="css/grade.css?v=1">
+<link rel="stylesheet" href="css/planilha.css?v=1">
+<link rel="stylesheet" href="css/graficos.css?v=1">
+<link rel="stylesheet" href="css/aparencia.css?v=1">
+</head>
+<body data-modo="foco">
+<main>
+  <div class="topo-global">
+  <nav class="abas" aria-label="Páginas">
+    <button type="button" data-pg="pomodoro" aria-pressed="true">Pomodoro</button>
+    <button type="button" data-pg="grade" aria-pressed="false">Grade</button>
+  </nav>
+    <button type="button" class="ap-abrir" id="btn-aparencia"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>Aparência</button>
+  </div>
+
+  <div id="pg-pomo">
+  <div class="barra">
+    <button id="status" data-st="config" title="Verificar conexão com a planilha"><span id="st-icone"></span><span id="st-texto">Configurar</span></button>
+    <div class="barra-dir">
+      <label id="selo-teste" title="Permite enviar sessões com menos de 1 minuto"><input type="checkbox" id="teste"> Modo teste</label>
+      <button id="btn-graficos">Gráficos</button>
+      <button id="btn-console">Console</button>
+      <button id="btn-config">Configurações</button>
+    </div>
+  </div>
+
+  <div class="grade">
+    <section class="timer">
+      <div class="modos" role="group" aria-label="Tipo de sessão">
+        <button data-modo="foco" aria-pressed="true">Foco</button>
+        <button data-modo="curta" aria-pressed="false">Pausa curta</button>
+        <button data-modo="longa" aria-pressed="false">Pausa longa</button>
+      </div>
+      <div class="tempo" id="tempo" role="timer" aria-live="off">25:00</div>
+      <p class="ciclo" id="ciclo"></p>
+      <div class="cat">
+        <label for="cat-btn">Categoria</label>
+        <div class="dd" id="dd">
+          <button type="button" class="dd-btn" id="cat-btn" aria-haspopup="listbox" aria-expanded="false"><span id="cat-txt">Estudo</span></button>
+          <ul class="dd-lista" id="cat-lista" role="listbox" hidden></ul>
+        </div>
+        <select id="categoria" hidden></select>
+        <button class="mini" id="atualizar-cats" title="Recarregar as categorias da planilha">↻</button>
+      </div>
+      <div class="acoes">
+        <button class="principal" id="iniciar">Iniciar</button>
+        <button id="encerrar" hidden>Encerrar e enviar</button>
+        <button id="reiniciar">Zerar</button>
+        <button class="principal" id="fim-extra" hidden>Finalizar extra</button>
+        <button id="no-horario" hidden>Terminei no horário</button>
+      </div>
+    </section>
+
+    <section class="box">
+      <div class="box-topo"><h2>Sessões</h2><button class="mini" id="limpar-enviadas">Limpar enviadas</button></div>
+      <ul id="lista"></ul>
+    </section>
+  </div>
+
+  <details id="gf-det" open>
+    <summary>Gráficos de estudo</summary><div class="cx-corpo">
+    <div class="gf-barra">
+      <button type="button" class="mini gf-atualizar" title="Atualizar gráficos" aria-label="Atualizar gráficos">↻</button>
+      <span class="gf-status" role="status"></span>
+    </div>
+    <div class="gf-grade" id="gf-grade"></div>
+  </div></details>
+  </div>
+
+  <div id="pg-grade" hidden>
+    <div class="pl-titulo">
+      <h1>Planejador de grade</h1>
+      <div class="pl-ctrl">
+        <label>Período atual <select id="pl-atual"></select></label>
+        <label class="teste"><input type="checkbox" id="pl-recolher"> Recolher períodos passados</label>
+        <button type="button" class="pl-btn" id="pl-tabela">Editar em tabela</button>
+        <button type="button" class="pl-btn js-padrao" title="Guarda a grade atual como o estado para onde &quot;Voltar ao padrão&quot; retorna">Salvar como padrão</button>
+      </div>
+    </div>
+    <p class="dica" style="margin-bottom:1rem">Arraste os cartões (pela alça ⋮⋮ no celular) para os períodos. Clique num cartão para editar. I = semestres ímpares (1º, 3º…), P = pares (2º, 4º…).</p>
+    <div class="pl-resumo" id="pl-resumo"></div>
+
+    <details class="pl-reqs-box" open>
+      <summary>Optativas necessárias</summary><div class="cx-corpo">
+      <div class="pl-reqs" id="pl-reqs"></div>
+      <p class="dica" style="margin-top:.6rem">Contam só os créditos-aula, e só de disciplinas com período ou concluídas. Preencha créditos e blocos de cada disciplina para o contador ficar certo. Clique num bloco para ver as disciplinas dele.</p>
+    </div></details>
+
+    <div class="pl-layout">
+      <aside class="box pl-banco-box" id="pl-banco-box" data-zona="banco">
+        <div class="box-topo"><h2 id="pl-banco-tit">Sem período</h2><button type="button" class="mini" id="pl-nova">+ Nova</button></div>
+        <input type="text" id="pl-busca" placeholder="Buscar código, nome ou bloco" autocomplete="off" aria-label="Buscar disciplina">
+        <div class="pl-filtros" role="group" aria-label="Filtrar por tipo">
+          <button type="button" data-f="todas" aria-pressed="true">Todas</button>
+          <button type="button" data-f="obr" aria-pressed="false">Obrigatórias</button>
+          <button type="button" data-f="ele" aria-pressed="false">Eletivas</button>
+          <button type="button" data-f="liv" aria-pressed="false">Livres</button>
+        </div>
+        <select id="pl-bloco" aria-label="Filtrar por bloco"></select>
+        <div class="pl-banco" id="pl-banco"></div>
+      </aside>
+
+      <section>
+        <div class="pl-board" id="pl-board"></div>
+        <div class="pl-legenda">
+          <span><i style="background:var(--t-obr)"></i>Obrigatória</span>
+          <span><i style="background:var(--t-ele)"></i>Optativa eletiva</span>
+          <span><i style="background:var(--t-liv)"></i>Optativa livre</span>
+          <span><i style="background:var(--ok-fundo);border:1px solid var(--ok-borda)"></i>Concluída</span>
+          <span>Borda tracejada vermelha: pendente em período passado</span>
+          <span>Colunas tracejadas: além dos 10 semestres ideais (limite de 15)</span>
+        </div>
+      </section>
+    </div>
+
+    <details class="pl-dados">
+      <summary>Dados e backup</summary><div class="cx-corpo">
+      <p class="dica" style="margin-top:.75rem">A grade fica salva só neste navegador. Exporte um backup de vez em quando.</p>
+      <p class="dica" id="pl-padrao-info"></p>
+      <div class="acoes">
+        <button type="button" class="pl-btn pri js-padrao">Salvar grade atual como padrão</button>
+        <button type="button" class="pl-btn" id="pl-resetar">Voltar ao padrão</button>
+        <button type="button" class="pl-btn" id="pl-desfazer" hidden>Desfazer último reset/importação</button>
+        <button type="button" class="pl-btn" id="pl-exportar">Exportar JSON</button>
+        <button type="button" class="pl-btn" id="pl-importar">Importar JSON</button>
+        <button type="button" class="pl-btn perigo" id="pl-fabrica">Restaurar padrão de fábrica</button>
+        <input type="file" id="pl-arquivo" accept="application/json,.json" hidden>
+      </div>
+    </div></details>
+  </div>
+</main>
+
+<dialog id="dlg-aparencia" aria-label="Aparência">
+  <div class="dlg-corpo">
+    <div class="dlg-topo"><h2>Aparência</h2><button class="fechar" type="button">Fechar</button></div>
+    <p class="dica">As mudanças aparecem na hora e ficam salvas neste navegador.</p>
+
+    <details open><summary>Temas</summary><div class="cx-corpo"><div class="ap-chips" id="ap-temas"></div></div></details>
+    <details><summary>Cores</summary><div class="cx-corpo" id="ap-cores"></div></details>
+    <details><summary>Fonte</summary><div class="cx-corpo">
+      <label class="campo" for="ap-fonte">Fonte do site</label>
+      <select id="ap-fonte"></select>
+      <label class="campo" for="ap-fonte-outra" style="margin-top:.8rem">Outra fonte do Google Fonts</label>
+      <div class="ap-linha"><input type="text" id="ap-fonte-outra" placeholder="Ex.: Poppins" autocomplete="off"><button type="button" class="mini" id="ap-fonte-usar">Usar</button></div>
+    </div></details>
+    <details open><summary>Tamanhos e espaços</summary><div class="cx-corpo" id="ap-medidas"></div></details>
+    <details><summary>Tema em JSON</summary><div class="cx-corpo">
+      <p class="dica">Copie para guardar ou compartilhar o tema. Cole um tema aqui e clique em Aplicar.</p>
+      <textarea id="ap-json" rows="9" spellcheck="false"></textarea>
+      <div class="ap-linha"><button type="button" class="mini" id="ap-json-aplicar">Aplicar</button><button type="button" class="mini" id="ap-json-copiar">Copiar</button><span class="dica" id="ap-json-msg"></span></div>
+    </div></details>
+    <div class="ap-rodape"><button type="button" class="mini" id="ap-restaurar">Restaurar padrão</button></div>
+  </div>
+</dialog>
+
+<div id="toast" role="status" hidden></div>
+
+<dialog id="dlg-console">
+  <div class="dlg-corpo">
+    <div class="dlg-topo"><h2>Console</h2><button class="fechar">Fechar</button></div>
+    <div id="console" role="log" aria-live="polite"></div>
+    <button id="limpar-console">Limpar</button>
+  </div>
+</dialog>
+
+<dialog id="dlg-config">
+  <div class="dlg-corpo">
+    <div class="dlg-topo"><h2>Configurações</h2><button class="fechar">Fechar</button></div>
+    <div class="config">
+      <div>
+        <label class="campo" for="url">URL do Apps Script (termina em /exec)</label>
+        <input type="url" id="url" placeholder="https://script.google.com/macros/s/.../exec">
+      </div>
+      <div>
+        <label class="campo" for="token">Token</label>
+        <input type="password" id="token" autocomplete="off">
+      </div>
+      <div class="tres">
+        <div><span>Foco (min)</span><input type="number" id="d-foco" min="1" max="180"></div>
+        <div><span>Pausa curta</span><input type="number" id="d-curta" min="1" max="60"></div>
+        <div><span>Pausa longa</span><input type="number" id="d-longa" min="1" max="90"></div>
+      </div>
+      <p class="dica">URL e token ficam salvos só neste navegador.</p>
+      <details class="sh" id="sh-det">
+        <summary>Planilha: o que enviar e de onde ler</summary><div class="cx-corpo">
+        <p class="dica" style="margin-top:.6rem">Estas opções vão junto com cada envio: é o site que diz ao script (versão <b>v-generico-1</b> ou mais nova) onde gravar e o que ler.</p>
+        <h3>Enviar cada sessão para</h3>
+        <div class="sh-2">
+          <div><label class="campo" for="sh-aba">Aba de destino</label><input type="text" id="sh-aba" list="sh-abas" autocomplete="off"></div>
+          <div><label class="campo" for="sh-linha">Primeira linha de dados</label><input type="number" id="sh-linha" min="1"></div>
+        </div>
+        <table class="sh-tab" aria-label="Colunas de destino">
+          <thead><tr><td></td><td><small>Coluna (vazio = não enviar)</small></td></tr></thead>
+          <tbody id="sh-campos"></tbody>
+        </table>
+        <div class="sh-2" style="margin-top:.6rem">
+          <div><label class="campo" for="sh-tipo">Texto da coluna “Tipo”</label><input type="text" id="sh-tipo" autocomplete="off"></div>
+          <div><label class="campo" for="sh-formato">Perdido e tempo líquido como</label>
+            <select id="sh-formato"><option value="dia">Duração do Sheets (fração de dia)</option><option value="min">Minutos (número)</option></select></div>
+        </div>
+        <p class="dica" id="sh-resumo"></p>
+        <h3>Ler as categorias de</h3>
+        <div class="sh-2">
+          <div><label class="campo" for="sh-abacfg">Aba</label><input type="text" id="sh-abacfg" list="sh-abas" autocomplete="off"></div>
+          <div><label class="campo" for="sh-intervalo">Células (ex.: A23:A31)</label><input type="text" id="sh-intervalo" autocomplete="off"></div>
+        </div>
+        <datalist id="sh-abas"></datalist>
+        <div class="sh-btns">
+          <button type="button" id="sh-buscar-abas">Buscar abas da planilha</button>
+          <button type="button" id="sh-testar">Testar leitura das categorias</button>
+          <button type="button" id="sh-restaurar">Restaurar padrão</button>
+        </div>
+        <p class="dica" id="sh-msg" role="status"></p>
+      </div></details>
+      <details class="sh" id="gf-cfg-det">
+        <summary>Gráficos: de onde ler</summary><div class="cx-corpo">
+        <p class="dica" style="margin-top:.6rem">Cada gráfico lê um intervalo de 3 colunas: rótulo (data), tempo líquido e perdido. Pode ter ou não o cabeçalho; linhas vazias no fim são ignoradas. Intervalos abertos como I3:K pegam tudo até a última linha.</p>
+        <div id="gf-cfg"></div>
+        <div class="sh-btns">
+          <button type="button" id="gf-add">+ Adicionar gráfico</button>
+          <button type="button" id="gf-restaurar">Restaurar padrão</button>
+        </div>
+      </div></details>
+      <details class="sh" id="av-det">
+        <summary>Avançado: falar direto com o script</summary><div class="cx-corpo">
+        <p class="dica" style="margin-top:.6rem">O Apps Script é genérico (ler, escrever, anexar, limpar, abas, info, lote). Aqui você manda um pedido em JSON e vê a resposta. Ações que gravam pedem confirmação.</p>
+        <div class="sh-2" style="margin-top:.6rem">
+          <div><label class="campo" for="av-acao">Ação</label>
+            <select id="av-acao"><option>info</option><option>abas</option><option selected>ler</option><option>escrever</option><option>anexar</option><option>limpar</option></select></div>
+          <div style="align-self:end"><button type="button" class="pl-btn pri" id="av-rodar" style="width:100%">Executar</button></div>
+        </div>
+        <label class="campo" for="av-json" style="margin-top:.6rem">Parâmetros (JSON)</label>
+        <textarea id="av-json" rows="6" spellcheck="false" style="width:100%;font-family:ui-monospace,monospace;font-size:.8rem;padding:.6rem;border:1.5px solid var(--line);border-radius:.6rem;background:var(--card);color:inherit"></textarea>
+        <pre id="av-saida" style="margin:.6rem 0 0;max-height:14rem;overflow:auto;font-size:.75rem;background:var(--card);border:1px solid var(--line);border-radius:.6rem;padding:.6rem;white-space:pre-wrap"></pre>
+      </div></details>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dlg-graficos">
+  <div class="dlg-corpo">
+    <div class="dlg-topo"><h2>Gráficos de estudo</h2><button type="button" class="fechar">Fechar</button></div>
+    <div class="gf-barra">
+      <button type="button" class="mini gf-atualizar" title="Atualizar gráficos" aria-label="Atualizar gráficos">↻</button>
+      <span class="gf-status" role="status"></span>
+    </div>
+    <div class="gf-grade" id="gf-popup"></div>
+  </div>
+</dialog>
+
+<dialog id="dlg-tab">
+  <div class="dlg-corpo">
+    <div class="dlg-topo"><h2>Editar em tabela</h2><button type="button" class="fechar">Fechar</button></div>
+    <p class="dica" style="margin-top:.5rem">As alterações são salvas na hora. Use Tab para ir de campo em campo. Blocos separados por vírgula: I, II, III, IV, V, VI, VII, IEE (Intro. à Educação), PSI (Psicologia), EST (Estágio).</p>
+    <div class="tab-filtros">
+      <input type="text" id="tab-busca" placeholder="Buscar código, nome ou bloco" autocomplete="off" aria-label="Buscar">
+      <select id="tab-tipo" aria-label="Tipo"><option value="todos">Todos os tipos</option><option value="obr">Obrigatórias</option><option value="ele">Eletivas</option><option value="liv">Livres</option></select>
+      <select id="tab-per" aria-label="Período"></select>
+      <button type="button" class="pl-btn" id="tab-nova">+ Nova disciplina</button>
+      <span class="dica" id="tab-cont"></span>
+    </div>
+    <p class="pl-erro" id="tab-erro" role="alert" hidden></p>
+    <div class="tab-scroll"><table class="tab-tab">
+      <thead><tr><th title="Concluída">✓</th><th>Código</th><th>Nome</th><th>Tipo</th><th>Cr. aula</th><th>Cr. trab.</th><th>Oferecida</th><th>Período</th><th>Blocos</th><th></th></tr></thead>
+      <tbody id="tab-corpo"></tbody>
+    </table></div>
+  </div>
+</dialog>
+
+<dialog id="dlg-dis">
+  <div class="dlg-corpo">
+    <div class="dlg-topo"><h2 id="dis-titulo">Disciplina</h2><button type="button" class="fechar">Fechar</button></div>
+    <form id="f-dis" class="pl-form" autocomplete="off">
+      <div class="pl-2">
+        <label><span>Código</span><input type="text" id="f-cod" maxlength="20" placeholder="MAT0000"></label>
+        <label><span>Tipo</span>
+          <select id="f-tipo">
+            <option value="obr">Obrigatória</option>
+            <option value="ele">Optativa eletiva</option>
+            <option value="liv">Optativa livre</option>
+          </select>
+        </label>
+      </div>
+      <label><span>Nome</span><input type="text" id="f-nome" maxlength="120"></label>
+      <div class="pl-2">
+        <label><span>Créditos-aula</span><input type="number" id="f-aula" min="0" max="40" step="1"></label>
+        <label><span>Créditos-trabalho</span><input type="number" id="f-trab" min="0" max="40" step="1"></label>
+      </div>
+      <p class="dica" id="f-horas"></p>
+      <label><span>Oferecida em</span>
+        <select id="f-par">
+          <option value="any">Todo semestre</option>
+          <option value="impar">Só semestres I (1º, 3º, 5º…)</option>
+          <option value="par">Só semestres P (2º, 4º, 6º…)</option>
+        </select>
+      </label>
+      <label><span>Período</span><select id="f-per"></select></label>
+      <div>
+        <span style="display:block;font-weight:600;font-size:.85rem;margin-bottom:.3rem">Blocos (marque quantos valerem)</span>
+        <div class="pl-blocos" id="f-blocos"></div>
+      </div>
+      <label><span>Observação (opcional)</span><input type="text" id="f-obs" maxlength="120"></label>
+      <label class="teste"><input type="checkbox" id="f-feita"> Já concluí esta disciplina</label>
+      <p class="pl-erro" id="dis-erro" role="alert" hidden></p>
+      <div class="pl-btns">
+        <button type="button" class="pl-btn perigo" id="dis-excluir">Excluir</button>
+        <span class="grow"></span>
+        <button type="button" class="pl-btn" id="dis-cancelar">Cancelar</button>
+        <button type="submit" class="pl-btn pri">Salvar</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script src="js/pomodoro.js?v=1"></script>
+<script src="js/planilha.js?v=1"></script>
+<script src="js/grade.js?v=1"></script>
+<script src="js/graficos.js?v=1"></script>
+<script src="js/aparencia.js?v=1"></script>
+</body>
+</html>

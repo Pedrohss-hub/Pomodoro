@@ -1,0 +1,253 @@
+/* Gráficos de estudo. Depende de pomodoro.js. */
+(() => {
+  const GRAF_PADRAO = [
+    { id: 'g4', titulo: 'Desenvolvimento semanal', tipo: 'linhas', aba: 'Banco', intervalo: 'Q18:S25', ativo: true },
+    { id: 'g3', titulo: 'Estudo mensal anual', tipo: 'barras', aba: 'Banco', intervalo: 'Q3:S14', ativo: true },
+    { id: 'g1', titulo: 'Estudo mensal', tipo: 'barras', aba: 'Banco', intervalo: 'I3:K', ativo: true },
+    { id: 'g2', titulo: 'Estudo anual', tipo: 'barras', aba: 'Banco', intervalo: 'M3:O', ativo: true }
+  ];
+  if (!Array.isArray(cfg.graficos)) cfg.graficos = JSON.parse(JSON.stringify(GRAF_PADRAO));
+  // uma vez só: leva o semanal e o mensal anual para a frente dos gráficos que já estavam salvos
+  if (cfg.ordemGraficos !== 2) {
+    const frente = ['g4', 'g3'], pos = g => { const k = frente.indexOf(g.id); return k < 0 ? 99 : k; };
+    cfg.graficos = cfg.graficos.map((g, i) => [g, i]).sort((a, b) => pos(a[0]) - pos(b[0]) || a[1] - b[1]).map(x => x[0]);
+    cfg.ordemGraficos = 2; LS.set('pomo-cfg', cfg);
+  }
+
+  const corCss = (v, padrao) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || padrao;
+  const CORES = { get liq() { return corCss('--g-liq', '#4B3BFF'); }, get per() { return corCss('--g-per', '#E08A00'); } };
+  const CACHE = 'pomo-graficos', ABERTO = 'pomo-graf-aberto', TTL = 10 * 60 * 1000;
+  const salvoCache = LS.get(CACHE, null) || {};
+  const estado = { dados: salvoCache.dados || {}, em: salvoCache.em || 0, carregando: false, erro: '' };
+  const sig = g => g.aba + '!' + g.intervalo;
+  const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  const sv = (tag, attrs, txt) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; };
+
+  const horaTxt = x => { const m = Math.round(x * 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
+  const passo = max => { for (const p of [0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000]) if (max / p <= 5) return p; return 10000; };
+
+  /* ---------- desenho do gráfico (SVG feito à mão, sem bibliotecas) ---------- */
+  function desenharSvg(plot, tipo, rot, series, tip) {
+    const velho = plot.querySelector('svg'); if (velho) velho.remove();
+    tip.hidden = true;
+    const W = Math.max(260, plot.clientWidth), H = 240, ML = 46, MR = 10, MT = 12, MB = 30;
+    const pw = W - ML - MR, ph = H - MT - MB, n = rot.length;
+    const vis = series.filter(s => !s.oculta);
+    const max = Math.max(0.5, ...vis.flatMap(s => s.valores));
+    const st = passo(max), topo = Math.ceil(max / st - 1e-9) * st;
+    const y = v => MT + ph - (v / topo) * ph;
+    const gw = pw / n;
+    const svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Gráfico de estudo' });
+    svg.style.cssText = 'width:100%;height:auto;display:block;touch-action:pan-y';
+
+    for (let k = 0; k * st <= topo + 1e-9; k++) {
+      const v = k * st;
+      svg.append(sv('line', { x1: ML, x2: W - MR, y1: y(v), y2: y(v), stroke: 'var(--line)', 'stroke-width': 1 }),
+        sv('text', { x: ML - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--soft)' }, v + 'h'));
+    }
+    const cada = Math.ceil(n / Math.max(1, Math.floor(pw / 48)));
+    rot.forEach((r, i) => {
+      if (i % cada) return;
+      svg.append(sv('text', { x: ML + gw * (i + .5), y: H - 10, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--soft)' }, r.length > 9 ? r.slice(0, 8) + '…' : r));
+    });
+
+    const marca = sv('rect', { y: MT, height: ph, width: gw, fill: 'var(--ink)', opacity: 0.06, visibility: 'hidden' });
+    svg.append(marca);
+
+    if (tipo === 'linhas') {
+      vis.forEach(s => {
+        const pts = s.valores.map((v, i) => [ML + gw * (i + .5), y(v)]);
+        if (pts.length > 1) svg.append(sv('path', { d: pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' '), fill: 'none', stroke: s.cor, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+        pts.forEach(p => svg.append(sv('circle', { cx: p[0], cy: p[1], r: 3.5, fill: s.cor })));
+      });
+    } else {
+      const k = Math.max(1, vis.length), bw = Math.min(26, (gw * 0.74) / k);
+      vis.forEach((s, si) => s.valores.forEach((v, i) => {
+        if (!(v > 0)) return;
+        const x = ML + gw * i + gw / 2 - (k * bw) / 2 + si * bw;
+        svg.append(sv('rect', { x: x + .5, y: y(v), width: Math.max(1, bw - 1), height: Math.max(1, (v / topo) * ph), rx: 2, fill: s.cor }));
+      }));
+    }
+
+    function mostrar(ev) {
+      const r = svg.getBoundingClientRect(), esc = W / r.width;
+      const i = Math.floor(((ev.clientX - r.left) * esc - ML) / gw);
+      if (i < 0 || i >= n) { esconder(); return; }
+      marca.setAttribute('x', ML + gw * i); marca.setAttribute('visibility', 'visible');
+      tip.replaceChildren();
+      tip.append(h('b', null, rot[i]));
+      series.forEach(s => {
+        const l = h('div', 'gf-tip-l');
+        const p = h('i'); p.style.background = s.cor;
+        l.append(p, document.createTextNode(s.nome + ': ' + horaTxt(s.valores[i]))); tip.append(l);
+      });
+      tip.hidden = false;
+      const cx = (ML + gw * (i + .5)) / esc;
+      tip.style.left = Math.max(0, Math.min(cx + 12, plot.clientWidth - tip.offsetWidth)) + 'px';
+    }
+    function esconder() { marca.setAttribute('visibility', 'hidden'); tip.hidden = true; }
+    svg.addEventListener('pointermove', mostrar);
+    svg.addEventListener('pointerdown', mostrar);
+    svg.addEventListener('pointerleave', esconder);
+    plot.prepend(svg);
+  }
+
+  /* ---------- cartão de um gráfico ---------- */
+  function cartao(g) {
+    const card = h('div', 'gf-card');
+    const topo = h('div', 'gf-topo'), sub = h('span', 'gf-sub');
+    topo.append(h('h3', null, g.titulo || 'Gráfico'), sub);
+    const leg = h('div', 'gf-leg'), plot = h('div', 'gf-plot'), tip = h('div', 'gf-tip'), msg = h('p', 'gf-msg');
+    tip.hidden = true; plot.append(tip);
+    card.append(topo, leg, plot, msg);
+    const ocultas = new Set();
+    let ultimo = null, larg = 0;
+
+    const aviso = (t, erro) => { msg.textContent = t; msg.className = 'gf-msg' + (erro ? ' erro' : ''); msg.hidden = !t; };
+    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip); } };
+
+    function atualizar() {
+      const v = plot.querySelector('svg'); if (v) v.remove();
+      leg.replaceChildren(); sub.textContent = ''; ultimo = null; aviso('');
+      if (!cfg.url || !cfg.token) return aviso('Configure a URL e o token (Configurações) para ver os gráficos.');
+      const d = estado.dados[g.id];
+      if (!d || d.sig !== sig(g)) return aviso(estado.carregando ? 'Carregando…' : estado.erro ? 'Não consegui carregar: ' + estado.erro : 'Ainda sem dados. Use ↻ Atualizar.', !!estado.erro && !estado.carregando);
+      if (d.erro) return aviso(d.erro, true);
+      if (!d.linhas.some(l => l[1] != null || l[2] != null))
+        return aviso('Não consegui interpretar os tempos de ' + g.aba + '!' + g.intervalo + ' (esperado: rótulo, tempo líquido, perdido)' + (d.amostra ? '. Primeiras linhas lidas: ' + d.amostra.map(l => l.join(' | ')).join(' / ') : '') + '.', true);
+      const linhas = d.linhas.slice();
+      while (linhas.length && linhas[0][1] == null && linhas[0][2] == null) linhas.shift();   // ignora cabeçalho
+      const rot = linhas.map(l => l[0] || '');
+      const liq = linhas.map(l => l[1] || 0), per = linhas.map(l => l[2] || 0);
+      const series = [{ nome: 'Tempo líquido', cor: CORES.liq, valores: liq, oculta: ocultas.has('liq') }];
+      if (per.some(x => x > 0)) series.push({ nome: 'Perdido', cor: CORES.per, valores: per, oculta: ocultas.has('per') });
+      ultimo = { rot, series };
+      const soma = a => a.reduce((s, x) => s + x, 0);
+      sub.textContent = 'Líquido ' + horaTxt(soma(liq)) + (series.length > 1 ? ' · Perdido ' + horaTxt(soma(per)) : '');
+      series.forEach(s => {
+        const b = h('button', 'gf-leg-b' + (s.oculta ? ' off' : '')); b.type = 'button';
+        const p = h('i'); p.style.background = s.cor; b.append(p, document.createTextNode(s.nome));
+        b.title = 'Clique para ' + (s.oculta ? 'mostrar' : 'ocultar');
+        b.onclick = () => { const k = s.cor === CORES.liq ? 'liq' : 'per'; if (ocultas.has(k)) ocultas.delete(k); else if (series.filter(x => !x.oculta).length > 1) ocultas.add(k); atualizar(); };
+        leg.append(b);
+      });
+      pintar();
+    }
+    const ro = new ResizeObserver(() => { if (plot.clientWidth !== larg) pintar(); });
+    ro.observe(plot);
+    card.atualizar = atualizar; card.desligar = () => ro.disconnect();
+    return card;
+  }
+
+  // O script devolve as células; aqui viram [rótulo, líquido(h), perdido(h)]
+  function converter(r) {
+    if (!r || !r.ok) return { erro: (r && r.erro) || 'o script não respondeu para este gráfico' };
+    const ex = r.exibidos || [], va = r.valores || [], fo = r.formatos || [];
+    if (ex.length && ex[0].length < 2) return { erro: 'o intervalo precisa ter ao menos 2 colunas (rótulo e tempo líquido)' };
+    const tres = ex.length && ex[0].length >= 3;
+    return {
+      linhas: ex.map((e, i) => [String(e[0]).trim(), emHoras(va[i][1], fo[i][1], e[1]), tres ? emHoras(va[i][2], fo[i][2], e[2]) : null]).slice(-500),
+      amostra: ex.slice(0, 3)
+    };
+  }
+
+  /* ---------- onde os gráficos aparecem ---------- */
+  const det = $('#gf-det'), dlg = $('#dlg-graficos');
+  const alvos = () => [
+    det.open && !$('#pg-pomo').hidden ? $('#gf-grade') : null,
+    dlg.open ? $('#gf-popup') : null
+  ].filter(Boolean);
+  const visivel = () => alvos().length > 0;
+
+  function renderizar(c) {
+    (c._cards || []).forEach(x => x.desligar());
+    c._cards = cfg.graficos.filter(g => g.ativo).map(cartao);
+    c.replaceChildren(...c._cards);
+    if (!c._cards.length) { const p = h('p', 'gf-msg', 'Nenhum gráfico ativo. Ative ou adicione em Configurações → Gráficos.'); c.append(p); }
+    c._cards.forEach(x => x.atualizar());
+  }
+  function renderizarTudo() { alvos().forEach(renderizar); rodape(); }
+
+  function rodape() {
+    const t = estado.carregando ? 'Atualizando…' : estado.em ? 'Atualizado há ' + (Date.now() - estado.em < 60000 ? 'instantes' : Math.round((Date.now() - estado.em) / 60000) + ' min') : 'Ainda não atualizado';
+    document.querySelectorAll('.gf-status').forEach(e => { e.textContent = t + (estado.erro && !estado.carregando ? ' · falhou: ' + estado.erro : ''); });
+  }
+
+  async function carregar(forcar) {
+    if (!cfg.url || !cfg.token) { renderizarTudo(); return; }
+    const ativos = cfg.graficos.filter(g => g.ativo && g.intervalo);
+    if (!ativos.length || estado.carregando) return;
+    const velho = Date.now() - estado.em > TTL || ativos.some(g => !estado.dados[g.id] || estado.dados[g.id].sig !== sig(g));
+    if (!forcar && !velho) { rodape(); return; }
+    estado.carregando = true; estado.erro = ''; renderizarTudo();
+    try {
+      if (!navigator.onLine) throw new Error('sem internet');
+      const d = await chamarScript('lote', { itens: ativos.map(g => ({ acao: 'ler', aba: g.aba, intervalo: g.intervalo, retorno: ['exibidos', 'valores', 'formatos'] })) });
+      if (!d.ok) throw new Error(d.erro || 'resposta inesperada');
+      if (!d.resultados) throw new Error('o script está numa versão antiga: cole o novo apps-script.gs (v-generico-1) e publique uma nova versão');
+      ativos.forEach((g, i) => { estado.dados[g.id] = Object.assign({ sig: sig(g) }, converter(d.resultados[i])); });
+      estado.em = Date.now();
+      LS.set(CACHE, { em: estado.em, dados: estado.dados });
+    } catch (err) {
+      estado.erro = err instanceof SyntaxError ? 'resposta inesperada do script (token, URL ou versão antiga)' : (err.name === 'TimeoutError' || err.name === 'AbortError' || (err.name === 'TypeError' && /fetch|network|load failed/i.test(err.message))) ? 'sem conexão com o script' : err.message;
+    } finally { estado.carregando = false; renderizarTudo(); }
+  }
+
+  det.addEventListener('toggle', () => { LS.set(ABERTO, det.open); if (det.open) { renderizarTudo(); carregar(); } });
+  function abrirPopup() { dlg.showModal(); requestAnimationFrame(() => { renderizarTudo(); carregar(); }); }
+  $('#btn-graficos').onclick = abrirPopup;
+  dlg.addEventListener('close', () => { const c = $('#gf-popup'); (c._cards || []).forEach(x => x.desligar()); c._cards = []; c.replaceChildren(); });
+  document.querySelectorAll('.gf-atualizar').forEach(b => b.onclick = () => carregar(true));
+  setInterval(rodape, 30000);
+
+  // chamado depois que uma sessão é gravada na planilha
+  window.graficosRedesenhar = () => { if (visivel()) renderizarTudo(); };
+  window.graficosAposEnvio = () => { estado.em = 0; LS.set(CACHE, { em: 0, dados: estado.dados }); if (visivel()) carregar(true); };
+
+  /* ---------- configuração (dentro de Configurações) ---------- */
+  const REGEX_INTERVALO = /^[A-Za-z]{1,3}\d+:[A-Za-z]{1,3}\d*$/;
+  const guardar = () => { LS.set('pomo-cfg', cfg); renderizarTudo(); if (visivel()) carregar(); };
+  function montarConfig() {
+    const box = $('#gf-cfg'); box.replaceChildren();
+    cfg.graficos.forEach((g, i) => {
+      const it = h('div', 'gf-cfg-item'), l1 = h('div', 'gf-cfg-l1'), l2 = h('div', 'gf-cfg-l2');
+      const at = h('input'); at.type = 'checkbox'; at.checked = g.ativo; at.title = 'Mostrar este gráfico'; at.setAttribute('aria-label', 'Mostrar ' + g.titulo);
+      at.onchange = () => { g.ativo = at.checked; guardar(); };
+      const ti = h('input'); ti.type = 'text'; ti.value = g.titulo; ti.setAttribute('aria-label', 'Título'); ti.placeholder = 'Título';
+      ti.onchange = () => { g.titulo = ti.value.trim() || 'Gráfico'; guardar(); };
+      const x = h('button', null, '✕'); x.type = 'button'; x.title = 'Remover este gráfico';
+      x.onclick = () => { if (!confirm('Remover o gráfico “' + g.titulo + '”?')) return; cfg.graficos.splice(i, 1); guardar(); montarConfig(); };
+      l1.append(at, ti, x);
+      const tp = h('select'); tp.setAttribute('aria-label', 'Tipo');
+      tp.append(new Option('Barras', 'barras'), new Option('Linhas', 'linhas')); tp.value = g.tipo;
+      tp.onchange = () => { g.tipo = tp.value; guardar(); };
+      const ab = h('input'); ab.type = 'text'; ab.value = g.aba; ab.setAttribute('list', 'sh-abas'); ab.setAttribute('aria-label', 'Aba'); ab.placeholder = 'Aba';
+      ab.onchange = () => { g.aba = ab.value.trim() || 'Banco'; guardar(); };
+      const iv = h('input'); iv.type = 'text'; iv.value = g.intervalo; iv.setAttribute('aria-label', 'Células'); iv.placeholder = 'I3:K';
+      iv.onchange = () => {
+        const v = iv.value.trim().toUpperCase();
+        iv.classList.toggle('erro', !REGEX_INTERVALO.test(v));
+        if (REGEX_INTERVALO.test(v)) { g.intervalo = v; guardar(); }
+      };
+      l2.append(tp, ab, iv);
+      it.append(l1, l2); box.append(it);
+    });
+  }
+  $('#gf-add').onclick = () => {
+    cfg.graficos.push({ id: 'g' + Date.now().toString(36), titulo: 'Novo gráfico', tipo: 'barras', aba: 'Banco', intervalo: 'I3:K', ativo: true });
+    LS.set('pomo-cfg', cfg); montarConfig();
+  };
+  $('#gf-restaurar').onclick = () => {
+    if (!confirm('Voltar à lista padrão de gráficos (I3:K, M3:O, Q3:S14 e Q18:S25)?')) return;
+    cfg.graficos = JSON.parse(JSON.stringify(GRAF_PADRAO)); guardar(); montarConfig();
+  };
+  montarConfig();
+
+  window.addEventListener('hashchange', () => { if (visivel()) { renderizarTudo(); carregar(); } });
+  det.open = LS.get(ABERTO, true);
+  if (det.open) { renderizarTudo(); carregar(); }
+  // "no nível": a seção fica nítida quando o topo dela passa de ~55% da altura da tela
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([en]) => det.classList.toggle('em-foco', en.isIntersecting), { rootMargin: '0px 0px -45% 0px' }).observe(det);
+  }
+})();
