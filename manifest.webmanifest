@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Painel de Estudos",
-  "short_name": "Estudos",
+  "name": "Pomodoro",
+  "short_name": "Pomo",
   "description": "Pomodoro, grade de estudos e gráficos.",
   "lang": "pt-BR",
   "start_url": "./",
