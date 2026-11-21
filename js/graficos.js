@@ -1,10 +1,12 @@
 /* Gráficos de estudo. Depende de pomodoro.js. */
 (() => {
+  const intervaloInicio = () => { const p = cfg.planilha, c = String(p.campos.inicio || 'B').toUpperCase(); return c + p.linhaInicial + ':' + c; };
   const GRAF_PADRAO = [
     { id: 'g4', titulo: 'Desenvolvimento semanal', tipo: 'linhas', aba: 'Banco', intervalo: 'Q18:S25', ativo: true },
     { id: 'g3', titulo: 'Estudo mensal anual', tipo: 'barras', aba: 'Banco', intervalo: 'Q3:S14', ativo: true },
     { id: 'g1', titulo: 'Estudo mensal', tipo: 'barras', aba: 'Banco', intervalo: 'I3:K', ativo: true },
-    { id: 'g2', titulo: 'Estudo anual', tipo: 'barras', aba: 'Banco', intervalo: 'M3:O', ativo: true }
+    { id: 'g2', titulo: 'Estudo anual', tipo: 'barras', aba: 'Banco', intervalo: 'M3:O', ativo: true },
+    { id: 'g5', titulo: 'Horários de início', tipo: 'histograma', aba: cfg.planilha.aba, intervalo: intervaloInicio(), passo: 60, ativo: true }
   ];
   if (!Array.isArray(cfg.graficos)) cfg.graficos = JSON.parse(JSON.stringify(GRAF_PADRAO));
   // uma vez só: leva o semanal e o mensal anual para a frente dos gráficos que já estavam salvos
@@ -14,27 +16,35 @@
     cfg.ordemGraficos = 2; LS.set('pomo-cfg', cfg);
   }
 
+  // uma vez só: acrescenta o histograma a quem já tinha a lista salva
+  if (cfg.histograma !== 1) {
+    if (!cfg.graficos.some(g => g.id === 'g5')) cfg.graficos.push(JSON.parse(JSON.stringify(GRAF_PADRAO.find(g => g.id === 'g5'))));
+    cfg.histograma = 1; LS.set('pomo-cfg', cfg);
+  }
+
   const corCss = (v, padrao) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || padrao;
   const CORES = { get liq() { return corCss('--g-liq', '#4B3BFF'); }, get per() { return corCss('--g-per', '#E08A00'); } };
   const CACHE = 'pomo-graficos', ABERTO = 'pomo-graf-aberto', TTL = 10 * 60 * 1000;
   const salvoCache = LS.get(CACHE, null) || {};
   const estado = { dados: salvoCache.dados || {}, em: salvoCache.em || 0, carregando: false, erro: '' };
-  const sig = g => g.aba + '!' + g.intervalo;
+  const sig = g => g.aba + '!' + g.intervalo + (g.tipo === 'histograma' ? '#h' : g.anterior ? '+' + g.anterior : '');
   const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const sv = (tag, attrs, txt) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; };
 
   const horaTxt = x => { const m = Math.round(x * 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
   const passo = max => { for (const p of [0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000]) if (max / p <= 5) return p; return 10000; };
 
+  const passoN = max => [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000].find(p => max / p <= 5) || 2000;
+
   /* ---------- desenho do gráfico (SVG feito à mão, sem bibliotecas) ---------- */
-  function desenharSvg(plot, tipo, rot, series, tip) {
+  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h') {
     const velho = plot.querySelector('svg'); if (velho) velho.remove();
     tip.hidden = true;
     const W = Math.max(260, plot.clientWidth), H = 240, ML = 46, MR = 10, MT = 12, MB = 30;
     const pw = W - ML - MR, ph = H - MT - MB, n = rot.length;
     const vis = series.filter(s => !s.oculta);
-    const max = Math.max(0.5, ...vis.flatMap(s => s.valores));
-    const st = passo(max), topo = Math.ceil(max / st - 1e-9) * st;
+    const max = Math.max(unid === 'n' ? 1 : 0.5, ...vis.flatMap(s => s.valores));
+    const st = unid === 'n' ? passoN(max) : passo(max), topo = Math.ceil(max / st - 1e-9) * st;
     const y = v => MT + ph - (v / topo) * ph;
     const gw = pw / n;
     const svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Gráfico de estudo' });
@@ -43,7 +53,7 @@
     for (let k = 0; k * st <= topo + 1e-9; k++) {
       const v = k * st;
       svg.append(sv('line', { x1: ML, x2: W - MR, y1: y(v), y2: y(v), stroke: 'var(--line)', 'stroke-width': 1 }),
-        sv('text', { x: ML - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--soft)' }, v + 'h'));
+        sv('text', { x: ML - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--soft)' }, unid === 'n' ? String(v) : v + 'h'));
     }
     const cada = Math.ceil(n / Math.max(1, Math.floor(pw / 48)));
     rot.forEach((r, i) => {
@@ -54,19 +64,21 @@
     const marca = sv('rect', { y: MT, height: ph, width: gw, fill: 'var(--ink)', opacity: 0.06, visibility: 'hidden' });
     svg.append(marca);
 
+    // o período anterior (fundo) é desenhado primeiro, apagado
     if (tipo === 'linhas') {
-      vis.forEach(s => {
+      vis.slice().sort((x, y2) => (y2.fundo ? 1 : 0) - (x.fundo ? 1 : 0)).forEach(s => {
         const pts = s.valores.map((v, i) => [ML + gw * (i + .5), y(v)]);
-        if (pts.length > 1) svg.append(sv('path', { d: pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' '), fill: 'none', stroke: s.cor, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
-        pts.forEach(p => svg.append(sv('circle', { cx: p[0], cy: p[1], r: 3.5, fill: s.cor })));
+        const fx = s.fundo ? { 'stroke-dasharray': '5 4', opacity: 0.45 } : {};
+        if (pts.length > 1) svg.append(sv('path', Object.assign({ d: pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' '), fill: 'none', stroke: s.cor, 'stroke-width': s.fundo ? 2 : 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, fx)));
+        pts.forEach(p => svg.append(sv('circle', Object.assign({ cx: p[0], cy: p[1], r: 3.5, fill: s.cor }, s.fundo ? { opacity: 0.45 } : {}))));
       });
     } else {
-      const k = Math.max(1, vis.length), bw = Math.min(26, (gw * 0.74) / k);
-      vis.forEach((s, si) => s.valores.forEach((v, i) => {
-        if (!(v > 0)) return;
-        const x = ML + gw * i + gw / 2 - (k * bw) / 2 + si * bw;
-        svg.append(sv('rect', { x: x + .5, y: y(v), width: Math.max(1, bw - 1), height: Math.max(1, (v / topo) * ph), rx: 2, fill: s.cor }));
-      }));
+      const prim = vis.filter(s => !s.fundo), k = Math.max(1, prim.length);
+      const bw = tipo === 'histograma' ? gw * 0.9 : Math.min(26, (gw * 0.74) / k);
+      const xb = (si, i) => ML + gw * i + gw / 2 - (k * bw) / 2 + si * bw;
+      const barra = (x, v, w, cor, op) => { if (v > 0) svg.append(sv('rect', { x, y: y(v), width: Math.max(1, w), height: Math.max(1, (v / topo) * ph), rx: tipo === 'histograma' ? 1 : 2, fill: cor, opacity: op })); };
+      vis.filter(s => s.fundo).forEach(s => s.valores.forEach((v, i) => barra(xb(0, i) - 3, v, bw + 5, s.cor, 0.3)));
+      prim.forEach((s, si) => s.valores.forEach((v, i) => barra(xb(si, i) + .5, v, bw - 1, s.cor, 1)));
     }
 
     function mostrar(ev) {
@@ -79,7 +91,7 @@
       series.forEach(s => {
         const l = h('div', 'gf-tip-l');
         const p = h('i'); p.style.background = s.cor;
-        l.append(p, document.createTextNode(s.nome + ': ' + horaTxt(s.valores[i]))); tip.append(l);
+        l.append(p, document.createTextNode(s.nome + ': ' + (unid === 'n' ? s.valores[i] : horaTxt(s.valores[i])))); tip.append(l);
       });
       tip.hidden = false;
       const cx = (ML + gw * (i + .5)) / esc;
@@ -104,7 +116,23 @@
     let ultimo = null, larg = 0;
 
     const aviso = (t, erro) => { msg.textContent = t; msg.className = 'gf-msg' + (erro ? ' erro' : ''); msg.hidden = !t; };
-    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip); } };
+    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid); } };
+
+    // histograma: quantas vezes você começou a estudar em cada faixa de horário do dia
+    function histograma(d) {
+      if (!d.minutos.length) return aviso('Não achei horários em ' + g.aba + '!' + g.intervalo + ' (esperado: a coluna Início, como 14:30)' + (d.amostra ? '. Primeiras linhas lidas: ' + d.amostra.map(l => l.join(' | ')).join(' / ') : '') + '.', true);
+      const passo = g.passo === 30 ? 30 : 60, cont = Array(1440 / passo).fill(0);
+      d.minutos.forEach(m => cont[Math.floor(m / passo)]++);
+      const rot = cont.map((_, i) => { const m = i * passo, hh = String(Math.floor(m / 60)).padStart(2, '0'); return passo === 60 ? hh + 'h' : hh + ':' + String(m % 60).padStart(2, '0'); });
+      [[60, '1 h'], [30, '30 min']].forEach(([v, t]) => {
+        const b = h('button', 'gf-leg-b', t); b.type = 'button'; b.setAttribute('aria-pressed', String(passo === v));
+        b.onclick = () => { g.passo = v; LS.set('pomo-cfg', cfg); atualizar(); };
+        leg.append(b);
+      });
+      ultimo = { rot, unid: 'n', series: [{ nome: 'Inícios', chave: 'liq', cor: CORES.liq, valores: cont }] };
+      sub.textContent = d.minutos.length + ' inícios · pico ' + rot[cont.indexOf(Math.max(...cont))];
+      pintar();
+    }
 
     function atualizar() {
       const v = plot.querySelector('svg'); if (v) v.remove();
@@ -113,22 +141,25 @@
       const d = estado.dados[g.id];
       if (!d || d.sig !== sig(g)) return aviso(estado.carregando ? 'Carregando…' : estado.erro ? 'Não consegui carregar: ' + estado.erro : 'Ainda sem dados. Use ↻ Atualizar.', !!estado.erro && !estado.carregando);
       if (d.erro) return aviso(d.erro, true);
+      if (g.tipo === 'histograma') return histograma(d);
       if (!d.linhas.some(l => l[1] != null || l[2] != null))
         return aviso('Não consegui interpretar os tempos de ' + g.aba + '!' + g.intervalo + ' (esperado: rótulo, tempo líquido, perdido)' + (d.amostra ? '. Primeiras linhas lidas: ' + d.amostra.map(l => l.join(' | ')).join(' / ') : '') + '.', true);
       const linhas = d.linhas.slice();
       while (linhas.length && linhas[0][1] == null && linhas[0][2] == null) linhas.shift();   // ignora cabeçalho
       const rot = linhas.map(l => l[0] || '');
       const liq = linhas.map(l => l[1] || 0), per = linhas.map(l => l[2] || 0);
-      const series = [{ nome: 'Tempo líquido', cor: CORES.liq, valores: liq, oculta: ocultas.has('liq') }];
-      if (per.some(x => x > 0)) series.push({ nome: 'Perdido', cor: CORES.per, valores: per, oculta: ocultas.has('per') });
+      const ant = d.ant && d.ant.length ? d.ant.map(l => l[1] || 0) : null;
+      const series = [{ nome: 'Tempo líquido', chave: 'liq', cor: CORES.liq, valores: liq, oculta: ocultas.has('liq') }];
+      if (per.some(x => x > 0)) series.push({ nome: 'Perdido', chave: 'per', cor: CORES.per, valores: per, oculta: ocultas.has('per') });
+      if (ant) series.push({ nome: 'Anterior', chave: 'ant', cor: CORES.liq, fundo: true, valores: ant, oculta: ocultas.has('ant') });
       ultimo = { rot, series };
       const soma = a => a.reduce((s, x) => s + x, 0);
-      sub.textContent = 'Líquido ' + horaTxt(soma(liq)) + (series.length > 1 ? ' · Perdido ' + horaTxt(soma(per)) : '');
+      sub.textContent = 'Líquido ' + horaTxt(soma(liq)) + (per.some(x => x > 0) ? ' · Perdido ' + horaTxt(soma(per)) : '') + (ant ? ' · Anterior ' + horaTxt(soma(ant)) : '');
       series.forEach(s => {
         const b = h('button', 'gf-leg-b' + (s.oculta ? ' off' : '')); b.type = 'button';
-        const p = h('i'); p.style.background = s.cor; b.append(p, document.createTextNode(s.nome));
+        const p = h('i'); p.style.background = s.cor; if (s.fundo) p.style.opacity = 0.35; b.append(p, document.createTextNode(s.nome));
         b.title = 'Clique para ' + (s.oculta ? 'mostrar' : 'ocultar');
-        b.onclick = () => { const k = s.cor === CORES.liq ? 'liq' : 'per'; if (ocultas.has(k)) ocultas.delete(k); else if (series.filter(x => !x.oculta).length > 1) ocultas.add(k); atualizar(); };
+        b.onclick = () => { const k = s.chave; if (ocultas.has(k)) ocultas.delete(k); else if (series.filter(x => !x.oculta).length > 1) ocultas.add(k); atualizar(); };
         leg.append(b);
       });
       pintar();
@@ -140,9 +171,14 @@
   }
 
   // O script devolve as células; aqui viram [rótulo, líquido(h), perdido(h)]
-  function converter(r) {
+  function converter(r, g) {
     if (!r || !r.ok) return { erro: (r && r.erro) || 'o script não respondeu para este gráfico' };
     const ex = r.exibidos || [], va = r.valores || [], fo = r.formatos || [];
+    if (g.tipo === 'histograma') {   // só os horários de início (minutos desde 00:00)
+      const minutos = [];
+      ex.forEach(l => { const m = /(\d{1,2}):(\d{2})/.exec(l[0]); if (m && +m[1] < 24) minutos.push(+m[1] * 60 + +m[2]); });
+      return { minutos, amostra: ex.slice(0, 3) };
+    }
     if (ex.length && ex[0].length < 2) return { erro: 'o intervalo precisa ter ao menos 2 colunas (rótulo e tempo líquido)' };
     const tres = ex.length && ex[0].length >= 3;
     return {
@@ -182,10 +218,17 @@
     estado.carregando = true; estado.erro = ''; renderizarTudo();
     try {
       if (!navigator.onLine) throw new Error('sem internet');
-      const d = await chamarScript('lote', { itens: ativos.map(g => ({ acao: 'ler', aba: g.aba, intervalo: g.intervalo, retorno: ['exibidos', 'valores', 'formatos'] })) });
+      const itens = [], mapa = [], hist = g => g.tipo === 'histograma';
+      ativos.forEach(g => {
+        itens.push(hist(g) ? { acao: 'ler', aba: g.aba, intervalo: g.intervalo, retorno: ['exibidos'], limite: 1000 } : { acao: 'ler', aba: g.aba, intervalo: g.intervalo, retorno: ['exibidos', 'valores', 'formatos'] });
+        mapa.push([g, false]);
+        if (!hist(g) && g.anterior) { itens.push({ acao: 'ler', aba: g.aba, intervalo: g.anterior, retorno: ['exibidos', 'valores', 'formatos'] }); mapa.push([g, true]); }
+      });
+      const d = await chamarScript('lote', { itens });
       if (!d.ok) throw new Error(d.erro || 'resposta inesperada');
       if (!d.resultados) throw new Error('o script está numa versão antiga: cole o novo apps-script.gs (v-generico-1) e publique uma nova versão');
-      ativos.forEach((g, i) => { estado.dados[g.id] = Object.assign({ sig: sig(g) }, converter(d.resultados[i])); });
+      ativos.forEach(g => { estado.dados[g.id] = { sig: sig(g) }; });
+      mapa.forEach(([g, ant], i) => { const c = converter(d.resultados[i], g); if (ant) estado.dados[g.id].ant = c.erro ? null : c.linhas; else Object.assign(estado.dados[g.id], c); });
       estado.em = Date.now();
       LS.set(CACHE, { em: estado.em, dados: estado.dados });
     } catch (err) {
@@ -219,8 +262,8 @@
       x.onclick = () => { if (!confirm('Remover o gráfico “' + g.titulo + '”?')) return; cfg.graficos.splice(i, 1); guardar(); montarConfig(); };
       l1.append(at, ti, x);
       const tp = h('select'); tp.setAttribute('aria-label', 'Tipo');
-      tp.append(new Option('Barras', 'barras'), new Option('Linhas', 'linhas')); tp.value = g.tipo;
-      tp.onchange = () => { g.tipo = tp.value; guardar(); };
+      tp.append(new Option('Barras', 'barras'), new Option('Linhas', 'linhas'), new Option('Histograma', 'histograma')); tp.value = g.tipo;
+      tp.onchange = () => { g.tipo = tp.value; if (g.tipo === 'histograma') { g.aba = cfg.planilha.aba; g.intervalo = intervaloInicio(); g.passo = g.passo || 60; } guardar(); montarConfig(); };
       const ab = h('input'); ab.type = 'text'; ab.value = g.aba; ab.setAttribute('list', 'sh-abas'); ab.setAttribute('aria-label', 'Aba'); ab.placeholder = 'Aba';
       ab.onchange = () => { g.aba = ab.value.trim() || 'Banco'; guardar(); };
       const iv = h('input'); iv.type = 'text'; iv.value = g.intervalo; iv.setAttribute('aria-label', 'Células'); iv.placeholder = 'I3:K';
@@ -230,7 +273,13 @@
         if (REGEX_INTERVALO.test(v)) { g.intervalo = v; guardar(); }
       };
       l2.append(tp, ab, iv);
-      it.append(l1, l2); box.append(it);
+      it.append(l1, l2);
+      if (g.tipo !== 'histograma') {   // período anterior (opcional), desenhado apagado atrás
+        const an = h('input'); an.type = 'text'; an.value = g.anterior || ''; an.placeholder = 'Intervalo anterior (opcional), ex.: Q3:S14'; an.setAttribute('aria-label', 'Intervalo anterior');
+        an.onchange = () => { const v = an.value.trim().toUpperCase(); an.classList.toggle('erro', !!v && !REGEX_INTERVALO.test(v)); if (!v || REGEX_INTERVALO.test(v)) { g.anterior = v; guardar(); } };
+        it.append(an);
+      }
+      box.append(it);
     });
   }
   $('#gf-add').onclick = () => {
