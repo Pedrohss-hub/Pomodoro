@@ -42,6 +42,7 @@
 <link rel="stylesheet" href="css/grade.css?v=1">
 <link rel="stylesheet" href="css/planilha.css?v=1">
 <link rel="stylesheet" href="css/graficos.css?v=1">
+<link rel="stylesheet" href="css/agenda.css?v=1">
 <link rel="stylesheet" href="css/aparencia.css?v=1">
 </head>
 <body data-modo="foco">
@@ -98,6 +99,15 @@
     </section>
   </div>
 
+  <div class="painel-estudo">
+  <details id="ag-det" open>
+    <summary>Agenda</summary><div class="cx-corpo">
+    <div class="ag-barra">
+      <button type="button" class="mini" id="ag-atualizar" title="Atualizar agenda" aria-label="Atualizar agenda">↻</button>
+      <span id="ag-status" role="status"></span>
+    </div>
+    <div class="ag-lista" id="ag-lista"></div>
+  </div></details>
   <details id="gf-det" open>
     <summary>Gráficos de estudo</summary><div class="cx-corpo">
     <div class="gf-barra">
@@ -106,6 +116,7 @@
     </div>
     <div class="gf-grade" id="gf-grade"></div>
   </div></details>
+  </div>
   </div>
 
   <div id="pg-grade" hidden>
@@ -262,6 +273,19 @@
           <button type="button" id="gf-restaurar">Restaurar padrão</button>
         </div>
       </div></details>
+      <details class="sh" id="ag-cfg-det">
+        <summary>Agenda: de onde ler</summary><div class="cx-corpo">
+        <p class="dica" style="margin-top:.6rem">Colunas, nesta ordem: Status, ID, Descrição, Horas, Categoria, Rest, Data. A cor da data muda conforme os dias que faltam.</p>
+        <div class="sh-2">
+          <div><label class="campo" for="ag-aba">Aba</label><input type="text" id="ag-aba" list="sh-abas" autocomplete="off"></div>
+          <div><label class="campo" for="ag-int">Células (ex.: A3:G)</label><input type="text" id="ag-int" autocomplete="off"></div>
+        </div>
+        <div class="sh-2" style="margin-top:.6rem">
+          <div><label class="campo" for="ag-verm">Vermelho até (dias)</label><input type="number" id="ag-verm" min="0"></div>
+          <div><label class="campo" for="ag-amar">Amarelo até (dias)</label><input type="number" id="ag-amar" min="0"></div>
+        </div>
+        <label class="teste" style="margin-top:.6rem"><input type="checkbox" id="ag-conc"> Mostrar também os itens concluídos</label>
+      </div></details>
       <details class="sh" id="av-det">
         <summary>Avançado: falar direto com o script</summary><div class="cx-corpo">
         <p class="dica" style="margin-top:.6rem">O Apps Script é genérico (ler, escrever, anexar, limpar, abas, info, lote). Aqui você manda um pedido em JSON e vê a resposta. Ações que gravam pedem confirmação.</p>
@@ -357,6 +381,7 @@
 <script src="js/planilha.js?v=1"></script>
 <script src="js/grade.js?v=1"></script>
 <script src="js/graficos.js?v=1"></script>
+<script src="js/agenda.js?v=1"></script>
 <script src="js/aparencia.js?v=1"></script>
 <script>
 if ('serviceWorker' in navigator) {

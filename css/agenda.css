@@ -1,0 +1,25 @@
+/* Agenda: lista ao lado dos gráficos (acima deles em telas estreitas) e a cor da data pelos dias que faltam. */
+  .painel-estudo { display: grid; gap: 0 calc(1rem * var(--esp)); align-items: start; }
+  @media (min-width: 72rem) {
+    /* mais larga que a coluna do cronômetro: agenda à esquerda, gráficos à direita */
+    .painel-estudo { width: min(94vw, 84rem); position: relative; left: 50%; transform: translateX(-50%); grid-template-columns: 22rem minmax(0, 1fr); }
+  }
+  .ag-barra { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin: .75rem 0 .6rem; }
+  #ag-status { color: var(--soft); font-size: .8rem; }
+  .ag-lista { display: grid; gap: calc(.5rem * var(--esp)); max-height: 32rem; overflow: auto; padding-right: .2rem; }
+  .ag-item { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: .7rem; align-items: center; padding: .5rem .6rem; border: 1.5px solid var(--line); border-radius: calc(.8rem * var(--raio)); background: var(--card); }
+  .ag-data { display: grid; justify-items: center; padding: .35rem .2rem; border-radius: .6rem; text-align: center; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .ag-data b { font-size: .95rem; }
+  .ag-data small { font-size: .68rem; opacity: .85; white-space: nowrap; }
+  .ag-data.v0 { background: #111; color: #fff; }
+  .ag-data.v1 { background: #F2A7A7; color: #4a1212; }
+  .ag-data.v2 { background: #FFD966; color: #4a3a00; }
+  .ag-data.v3 { background: #B7E1CD; color: #103a28; }
+  .ag-desc { font-weight: 600; font-size: .9rem; overflow-wrap: anywhere; }
+  .ag-meta { display: flex; flex-wrap: wrap; gap: .2rem .5rem; margin-top: .15rem; color: var(--soft); font-size: .75rem; }
+  .ag-tag { border: 1px solid var(--line); border-radius: 999px; padding: 0 .45rem; }
+  .ag-item.feita { opacity: .5; }
+  .ag-item.feita .ag-desc { text-decoration: line-through; }
+  .ag-msg { margin: .5rem 0; color: var(--soft); font-size: .85rem; overflow-wrap: anywhere; }
+  .ag-msg.erro { color: var(--erro); font-weight: 600; }
+  #ag-int.erro { border-color: var(--erro); }

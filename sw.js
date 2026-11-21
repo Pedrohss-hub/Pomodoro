@@ -13,12 +13,14 @@ const ARQUIVOS = [
   './css/grade.css?v=1',
   './css/planilha.css?v=1',
   './css/graficos.css?v=1',
+  './css/agenda.css?v=1',
   './css/aparencia.css?v=1',
   './js/tema.js?v=1',
   './js/pomodoro.js?v=1',
   './js/planilha.js?v=1',
   './js/grade.js?v=1',
   './js/graficos.js?v=1',
+  './js/agenda.js?v=1',
   './js/aparencia.js?v=1'
 ];
 
