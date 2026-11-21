@@ -27,7 +27,14 @@
   const CACHE = 'pomo-graficos', ABERTO = 'pomo-graf-aberto', TTL = 10 * 60 * 1000;
   const salvoCache = LS.get(CACHE, null) || {};
   const estado = { dados: salvoCache.dados || {}, em: salvoCache.em || 0, carregando: false, erro: '' };
-  const sig = g => g.aba + '!' + g.intervalo + (g.tipo === 'histograma' ? '#h' : g.anterior ? '+' + g.anterior : '');
+  const sig = g => g.aba + '!' + g.intervalo + (g.tipo === 'histograma' ? '#h' : (g.anterior ? '+' + g.anterior : '') + (g.diaSemana ? '#d' : ''));
+  const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  // dia da semana de uma linha [rótulo, líquido, perdido, data ISO]: usa a data da célula; se faltar, tenta ler dd/mm[/aaaa] do rótulo
+  function diaSem(l) {
+    let d = /^\d{4}-\d{2}-\d{2}T/.test(l[3] || '') ? new Date(l[3]) : null;
+    if (!d) { const m = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/.exec(l[0] || ''); if (m) d = new Date(m[3] ? (+m[3] < 100 ? 2000 + +m[3] : +m[3]) : new Date().getFullYear(), +m[2] - 1, +m[1]); }
+    return d && !isNaN(d) ? DIAS[d.getDay()] : null;
+  }
   const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const sv = (tag, attrs, txt) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; };
 
@@ -37,7 +44,7 @@
   const passoN = max => [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000].find(p => max / p <= 5) || 2000;
 
   /* ---------- desenho do gráfico (SVG feito à mão, sem bibliotecas) ---------- */
-  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h') {
+  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h', dicas) {
     const velho = plot.querySelector('svg'); if (velho) velho.remove();
     tip.hidden = true;
     const W = Math.max(260, plot.clientWidth), H = 240, ML = 46, MR = 10, MT = 12, MB = 30;
@@ -87,7 +94,7 @@
       if (i < 0 || i >= n) { esconder(); return; }
       marca.setAttribute('x', ML + gw * i); marca.setAttribute('visibility', 'visible');
       tip.replaceChildren();
-      tip.append(h('b', null, rot[i]));
+      tip.append(h('b', null, (dicas && dicas[i]) || rot[i]));
       series.forEach(s => {
         const l = h('div', 'gf-tip-l');
         const p = h('i'); p.style.background = s.cor;
@@ -116,7 +123,7 @@
     let ultimo = null, larg = 0;
 
     const aviso = (t, erro) => { msg.textContent = t; msg.className = 'gf-msg' + (erro ? ' erro' : ''); msg.hidden = !t; };
-    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid); } };
+    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid, ultimo.dicas); } };
 
     // histograma: quantas vezes você começou a estudar em cada faixa de horário do dia
     function histograma(d) {
@@ -146,13 +153,14 @@
         return aviso('Não consegui interpretar os tempos de ' + g.aba + '!' + g.intervalo + ' (esperado: rótulo, tempo líquido, perdido)' + (d.amostra ? '. Primeiras linhas lidas: ' + d.amostra.map(l => l.join(' | ')).join(' / ') : '') + '.', true);
       const linhas = d.linhas.slice();
       while (linhas.length && linhas[0][1] == null && linhas[0][2] == null) linhas.shift();   // ignora cabeçalho
-      const rot = linhas.map(l => l[0] || '');
+      const rot = linhas.map(l => (g.diaSemana && diaSem(l)) || l[0] || '');
+      const dicas = g.diaSemana ? linhas.map((l, i) => rot[i] + (l[0] && l[0] !== rot[i] ? ' · ' + l[0] : '')) : null;
       const liq = linhas.map(l => l[1] || 0), per = linhas.map(l => l[2] || 0);
       const ant = d.ant && d.ant.length ? d.ant.map(l => l[1] || 0) : null;
       const series = [{ nome: 'Tempo líquido', chave: 'liq', cor: CORES.liq, valores: liq, oculta: ocultas.has('liq') }];
       if (per.some(x => x > 0)) series.push({ nome: 'Perdido', chave: 'per', cor: CORES.per, valores: per, oculta: ocultas.has('per') });
       if (ant) series.push({ nome: 'Anterior', chave: 'ant', cor: CORES.liq, fundo: true, valores: ant, oculta: ocultas.has('ant') });
-      ultimo = { rot, series };
+      ultimo = { rot, series, dicas };
       const soma = a => a.reduce((s, x) => s + x, 0);
       sub.textContent = 'Líquido ' + horaTxt(soma(liq)) + (per.some(x => x > 0) ? ' · Perdido ' + horaTxt(soma(per)) : '') + (ant ? ' · Anterior ' + horaTxt(soma(ant)) : '');
       series.forEach(s => {
@@ -182,7 +190,7 @@
     if (ex.length && ex[0].length < 2) return { erro: 'o intervalo precisa ter ao menos 2 colunas (rótulo e tempo líquido)' };
     const tres = ex.length && ex[0].length >= 3;
     return {
-      linhas: ex.map((e, i) => [String(e[0]).trim(), emHoras(va[i][1], fo[i][1], e[1]), tres ? emHoras(va[i][2], fo[i][2], e[2]) : null]).slice(-500),
+      linhas: ex.map((e, i) => [String(e[0]).trim(), emHoras(va[i][1], fo[i][1], e[1]), tres ? emHoras(va[i][2], fo[i][2], e[2]) : null, String((va[i] || [])[0] || '')]).slice(-500),
       amostra: ex.slice(0, 3)
     };
   }
@@ -258,9 +266,14 @@
       at.onchange = () => { g.ativo = at.checked; guardar(); };
       const ti = h('input'); ti.type = 'text'; ti.value = g.titulo; ti.setAttribute('aria-label', 'Título'); ti.placeholder = 'Título';
       ti.onchange = () => { g.titulo = ti.value.trim() || 'Gráfico'; guardar(); };
+      const sobe = h('button', null, '↑'), desce = h('button', null, '↓');
+      sobe.type = desce.type = 'button'; sobe.title = 'Mover para cima'; desce.title = 'Mover para baixo';
+      sobe.disabled = i === 0; desce.disabled = i === cfg.graficos.length - 1;
+      const mover = d => { const j = i + d; [cfg.graficos[i], cfg.graficos[j]] = [cfg.graficos[j], cfg.graficos[i]]; guardar(); montarConfig(); };
+      sobe.onclick = () => mover(-1); desce.onclick = () => mover(1);
       const x = h('button', null, '✕'); x.type = 'button'; x.title = 'Remover este gráfico';
       x.onclick = () => { if (!confirm('Remover o gráfico “' + g.titulo + '”?')) return; cfg.graficos.splice(i, 1); guardar(); montarConfig(); };
-      l1.append(at, ti, x);
+      l1.append(at, ti, sobe, desce, x);
       const tp = h('select'); tp.setAttribute('aria-label', 'Tipo');
       tp.append(new Option('Barras', 'barras'), new Option('Linhas', 'linhas'), new Option('Histograma', 'histograma')); tp.value = g.tipo;
       tp.onchange = () => { g.tipo = tp.value; if (g.tipo === 'histograma') { g.aba = cfg.planilha.aba; g.intervalo = intervaloInicio(); g.passo = g.passo || 60; } guardar(); montarConfig(); };
@@ -278,6 +291,10 @@
         const an = h('input'); an.type = 'text'; an.value = g.anterior || ''; an.placeholder = 'Intervalo anterior (opcional), ex.: Q3:S14'; an.setAttribute('aria-label', 'Intervalo anterior');
         an.onchange = () => { const v = an.value.trim().toUpperCase(); an.classList.toggle('erro', !!v && !REGEX_INTERVALO.test(v)); if (!v || REGEX_INTERVALO.test(v)) { g.anterior = v; guardar(); } };
         it.append(an);
+        const dl = h('label', 'teste'), dc = h('input'); dc.type = 'checkbox'; dc.checked = !!g.diaSemana;
+        dc.onchange = () => { g.diaSemana = dc.checked; guardar(); };
+        dl.append(dc, document.createTextNode(' Mostrar o dia da semana (Seg, Ter…) no eixo, quando a primeira coluna for uma data'));
+        it.append(dl);
       }
       box.append(it);
     });
