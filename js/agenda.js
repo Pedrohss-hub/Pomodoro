@@ -9,27 +9,35 @@
   const det = $('#ag-det'), lista = $('#ag-lista');
   const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
-  const visivel = () => det.open && !$('#pg-pomo').hidden;
+  const visivel = () => !$('#pg-pomo').hidden;
 
-  // linhas da planilha -> itens [{desc, hora, cat, feita, t:[ano, mês, dia]}] ordenados por data e hora
+  // linhas da planilha -> itens [{desc, hora, cat, feita, t:[ano, mês, dia]}] ordenados por data e hora.
+  // As colunas são achadas pelo cabeçalho (Status, Descrição, Horas, Categoria, Data) se ele estiver no intervalo;
+  // sem cabeçalho, vale a ordem Status, ID, Descrição, Horas, Categoria, Rest, Data.
   function converter(r) {
     const ex = r.exibidos || [], va = r.valores || [];
-    if (ex.length && ex[0].length < 7) throw new Error('o intervalo precisa ter 7 colunas (Status, ID, Descrição, Horas, Categoria, Rest, Data)');
+    let col = { st: 0, desc: 2, hora: 3, cat: 4, data: 6 }, ini = 0;
+    for (let i = 0; i < Math.min(ex.length, 8); i++) {
+      const l = ex[i].map(c => String(c).trim().toLowerCase()), f = re => l.findIndex(c => re.test(c));
+      if (f(/^descri/) >= 0 && f(/^data/) >= 0) { col = { st: f(/^status/), desc: f(/^descri/), hora: f(/^hora/), cat: f(/^categ/), data: f(/^data/) }; ini = i + 1; break; }
+    }
     const itens = [];
-    ex.forEach((e, i) => {
-      const desc = String(e[2]).trim(), v = va[i] || [];
+    ex.slice(ini).forEach((e, k) => {
+      const v = va[ini + k] || [], desc = String(e[col.desc] || '').trim();
       if (!desc) return;
-      let d = /^\d{4}-\d{2}-\d{2}T/.test(String(v[6])) ? new Date(v[6]) : null;
-      if (!d) { const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(e[6]); if (m) d = new Date(+m[3], +m[2] - 1, +m[1]); }
-      if (!d || isNaN(d)) return;                                   // cabeçalho ou linha sem data
-      const hm = /(\d{1,2}):(\d{2})/.exec(e[3]);
+      let d = /^\d{4}-\d{2}-\d{2}T/.test(String(v[col.data])) ? new Date(v[col.data]) : null;
+      if (!d) { const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(e[col.data]); if (m) d = new Date(+m[3], +m[2] - 1, +m[1]); }
+      if (!d || isNaN(d)) return;                                   // linha sem data
+      const hm = /(\d{1,2}):(\d{2})/.exec(e[col.hora] || '');
       itens.push({
-        desc, cat: String(e[4]).trim(), t: [d.getFullYear(), d.getMonth(), d.getDate()],
+        desc, cat: String(e[col.cat] || '').trim(), t: [d.getFullYear(), d.getMonth(), d.getDate()],
         hora: hm && (+hm[1] || +hm[2]) ? hm[1].padStart(2, '0') + ':' + hm[2] : '',       // 00:00 = sem horário
-        feita: v[0] === true || /^(true|verdadeiro|sim)$/i.test(String(e[0]))
+        feita: col.st >= 0 && (v[col.st] === true || /^(true|verdadeiro|sim)$/i.test(String(e[col.st])))
       });
     });
-    return itens.sort((a, b) => Date.UTC(...a.t) - Date.UTC(...b.t) || a.hora.localeCompare(b.hora));
+    if (!itens.length && ex.some(l => l.some(c => String(c).trim() && !/^(true|false)$/i.test(String(c).trim()))))
+      throw new Error('não reconheci a agenda. Primeiras linhas lidas: ' + ex.filter(l => l.some(c => String(c).trim())).slice(0, 2).map(l => l.join(' | ')).join(' / ') + '. Confira a aba e as células (ex.: A2:G, com o cabeçalho).');
+    return itens.sort((x, y) => Date.UTC(...x.t) - Date.UTC(...y.t) || x.hora.localeCompare(y.hora));
   }
 
   const msg = (t, erro) => lista.replaceChildren(h('p', 'ag-msg' + (erro ? ' erro' : ''), t));
@@ -70,7 +78,7 @@
     est.carregando = true; est.erro = ''; render(); rodape();
     try {
       if (!navigator.onLine) throw new Error('sem internet');
-      const d = await chamarScript('ler', { aba: cfg.agenda.aba, intervalo: cfg.agenda.intervalo, retorno: ['exibidos', 'valores'], limite: 300 });
+      const d = await chamarScript('ler', { aba: cfg.agenda.aba, intervalo: cfg.agenda.intervalo, retorno: ['exibidos', 'valores'], limite: 3000 });
       if (!d.ok) throw new Error(d.erro || 'resposta inesperada');
       est.itens = converter(d); est.sig = sig(); est.em = Date.now();
       LS.set(CACHE, { itens: est.itens, sig: est.sig, em: est.em });
@@ -79,7 +87,6 @@
     } finally { est.carregando = false; render(); rodape(); }
   }
 
-  det.addEventListener('toggle', () => { if (det.open) { render(); carregar(); } });
   $('#ag-atualizar').onclick = () => carregar(true);
   window.addEventListener('hashchange', () => { if (visivel()) { render(); carregar(); } });
   setInterval(() => { render(); rodape(); }, 60000);        // vira o dia sem precisar recarregar

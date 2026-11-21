@@ -1,7 +1,5 @@
 /* Gráficos de estudo. */
   /* gráficos de estudo */
-  #gf-det { margin-top: calc(3rem * var(--esp)); }
-  #gf-det > summary { font-size: 1.05rem; }
   #gf-det { opacity: .5; filter: saturate(.45); transition: opacity .35s ease, filter .35s ease; }
   #gf-det:hover, #gf-det:focus-within, #gf-det.em-foco { opacity: 1; filter: none; }
   .gf-barra { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin: .75rem 0 1rem; }
@@ -32,7 +30,7 @@
   .gf-cfg-item input[type="text"] { width: 100%; }
 
   /* colunas pela largura do próprio espaço (seção ou janela); o gráfico que sobra no fim fica centralizado */
-  #gf-det > .cx-corpo, #dlg-graficos .dlg-corpo { container-type: inline-size; }
+  #gf-det, #dlg-graficos .dlg-corpo { container-type: inline-size; }
   @container (min-width: 46rem) {
     .gf-grade { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .gf-grade > .gf-card { grid-column: span 2; }

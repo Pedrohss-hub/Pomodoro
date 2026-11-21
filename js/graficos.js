@@ -198,7 +198,7 @@
   /* ---------- onde os gráficos aparecem ---------- */
   const det = $('#gf-det'), dlg = $('#dlg-graficos');
   const alvos = () => [
-    det.open && !$('#pg-pomo').hidden ? $('#gf-grade') : null,
+    !$('#pg-pomo').hidden ? $('#gf-grade') : null,
     dlg.open ? $('#gf-popup') : null
   ].filter(Boolean);
   const visivel = () => alvos().length > 0;
@@ -244,7 +244,6 @@
     } finally { estado.carregando = false; renderizarTudo(); }
   }
 
-  det.addEventListener('toggle', () => { LS.set(ABERTO, det.open); if (det.open) { renderizarTudo(); carregar(); } });
   function abrirPopup() { dlg.showModal(); requestAnimationFrame(() => { renderizarTudo(); carregar(); }); }
   $('#btn-graficos').onclick = abrirPopup;
   dlg.addEventListener('close', () => { const c = $('#gf-popup'); (c._cards || []).forEach(x => x.desligar()); c._cards = []; c.replaceChildren(); });
@@ -310,8 +309,7 @@
   montarConfig();
 
   window.addEventListener('hashchange', () => { if (visivel()) { renderizarTudo(); carregar(); } });
-  det.open = LS.get(ABERTO, true);
-  if (det.open) { renderizarTudo(); carregar(); }
+  renderizarTudo(); carregar();
   // "no nível": a seção fica nítida quando o topo dela passa de ~55% da altura da tela
   if ('IntersectionObserver' in window) {
     new IntersectionObserver(([en]) => det.classList.toggle('em-foco', en.isIntersecting), { rootMargin: '0px 0px -45% 0px' }).observe(det);
