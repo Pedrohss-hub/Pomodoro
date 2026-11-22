@@ -6,6 +6,7 @@
   };
 
   let cfg = Object.assign({ url: '', token: '', foco: 25, curta: 5, longa: 15 }, LS.get('pomo-cfg', {}));
+  Sheets.usar(() => cfg);   // o núcleo (js/core/sheets.js) lê a URL e o token daqui
   const PLAN_PADRAO = { aba: 'Banco', linhaInicial: 2, tipo: 'Estudo', formatoTempo: 'dia', abaConfig: 'Config', intervalo: 'A23:A31',
     campos: { data: 'A', inicio: 'B', fim: 'C', perdido: 'D', categoria: 'E', tipo: 'F', liquido: 'G' } };
   cfg.planilha = Object.assign({}, PLAN_PADRAO, cfg.planilha, { campos: Object.assign({}, PLAN_PADRAO.campos, (cfg.planilha || {}).campos) });
@@ -227,7 +228,6 @@
 
   const UM_DIA = 24 * 60 * 60 * 1000;
   const falhaDeRede = msg => Object.assign(new Error(msg), { fila: true });
-  const sinal = ms => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
 
   async function enviar(e) {
     e.status = 'enviando'; e.erro = ''; renderLog();
@@ -238,20 +238,13 @@
       mostrar('info', 'Enviando: ' + hora(e.inicio) + ' até ' + hora(e.fim) + ', ' + fmtMin(e.minutos) + ', ' + dados.categoria
         + '\nDestino: …' + cfg.url.slice(-24), dados);
       const pedido = pedidoAnexar(e);
-      let txt;
-      try {
-        const r = await fetch(cfg.url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ token: cfg.token, ...pedido }),
-          signal: sinal(30000)
-        });
-        txt = await r.text();
-      } catch { throw falhaDeRede('sem conexão com o script'); }
       let d;
-      try { d = JSON.parse(txt); } catch {
-        if (txt.trim() === 'negado') throw new Error('token recusado pelo script');
-        throw new Error('o endereço não respondeu como o script esperado (confira a URL)');
+      try {
+        const { acao, ...resto } = pedido;
+        d = await Sheets.chamar(acao, resto, { timeout: 30000 });
+      } catch (err) {
+        if (err.tipo === 'rede') throw falhaDeRede(err.message);   // sem conexão: vai para a fila
+        throw err;
       }
       if (!d.ok) throw new Error(d.erro || 'o script respondeu ok: false');
       if (!d.linha) throw new Error('o script respondeu, mas não confirmou a gravação (versão antiga da implantação?)');
@@ -275,14 +268,7 @@
     fila = fila.then(() => enviar(e)).catch(() => {});
   }
 
-  async function pingar() {
-    const opcoes = { cache: 'no-store', signal: sinal(8000) };
-    try { return (await fetch(cfg.url, opcoes)).ok; }
-    catch {
-      try { await fetch(cfg.url, { ...opcoes, mode: 'no-cors', signal: sinal(8000) }); return true; }
-      catch { return false; }
-    }
-  }
+  function pingar() { return Sheets.ping(); }
 
   function renderCategorias() {
     const sel = $('#categoria');
@@ -340,17 +326,8 @@
     $('#cat-btn').focus();
   }
 
-  async function chamarScript(acao, dados = {}) {
-    const r = await fetch(cfg.url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ token: cfg.token, acao, ...dados }),
-      signal: sinal(15000)
-    });
-    const txt = await r.text();
-    if (txt.trim() === 'negado') throw new Error('token recusado pelo script');
-    return JSON.parse(txt);
-  }
+  // Ponte: os outros arquivos ainda chamam chamarScript. Aos poucos eles passam a usar Sheets.* direto.
+  function chamarScript(acao, dados = {}) { return Sheets.chamar(acao, dados); }
 
   async function carregarCategorias(manual = false) {
     if (!cfg.url || !cfg.token || !navigator.onLine) { if (manual) avisar('Configure a URL e o token para carregar as categorias.'); return; }
