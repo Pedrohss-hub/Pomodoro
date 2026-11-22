@@ -37,6 +37,29 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;800&display=swap" rel="stylesheet">
+<dialog id="dlg-ag">
+  <div class="dlg-corpo">
+    <div class="dlg-topo"><h2 id="ag-titulo">Item da agenda</h2><button type="button" class="fechar">Fechar</button></div>
+    <form id="ag-form" class="pl-form" autocomplete="off">
+      <label><span>Descrição</span><input type="text" id="ag-f-desc" maxlength="120"></label>
+      <div class="pl-2">
+        <label><span>Data</span><input type="date" id="ag-f-data"></label>
+        <label><span>Hora (opcional)</span><input type="time" id="ag-f-hora"></label>
+      </div>
+      <label><span>Categoria</span><input type="text" id="ag-f-cat" list="ag-cats" maxlength="40"></label>
+      <datalist id="ag-cats"></datalist>
+      <label class="teste" id="ag-feita-l"><input type="checkbox" id="ag-f-feita"> Concluído</label>
+      <p class="pl-erro" id="ag-erro" role="alert" hidden></p>
+      <div class="pl-btns">
+        <button type="button" class="pl-btn perigo" id="ag-excluir">Excluir</button>
+        <span class="grow"></span>
+        <button type="button" class="pl-btn" id="ag-cancelar">Cancelar</button>
+        <button type="submit" class="pl-btn pri" id="ag-salvar">Salvar</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
 <script src="js/tema.js?v=1"></script>
 <link rel="stylesheet" href="css/base.css?v=1">
 <link rel="stylesheet" href="css/grade.css?v=1">
@@ -102,7 +125,7 @@
   <div class="painel-estudo">
   <section class="box" id="ag-det">
     <div class="box-topo"><h2>Agenda</h2>
-      <div class="acoes-topo"><span id="ag-status" role="status"></span><button type="button" class="mini" id="ag-atualizar" title="Atualizar agenda" aria-label="Atualizar agenda">↻</button></div>
+      <div class="acoes-topo"><span id="ag-status" role="status"></span><button type="button" class="mini" id="ag-nova" title="Adicionar item na agenda">+ Novo</button><button type="button" class="mini" id="ag-atualizar" title="Atualizar agenda" aria-label="Atualizar agenda">↻</button></div>
     </div>
     <div class="ag-lista" id="ag-lista"></div>
   </section>

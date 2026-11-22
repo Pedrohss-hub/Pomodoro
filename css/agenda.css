@@ -8,8 +8,8 @@
     .painel-estudo { width: min(94vw, 84rem); position: relative; left: 50%; transform: translateX(-50%); grid-template-columns: 22rem minmax(0, 1fr); }
   }
   #ag-status { color: var(--soft); font-size: .8rem; }
-  .ag-lista { display: grid; gap: calc(.5rem * var(--esp)); max-height: 32rem; overflow: auto; padding-right: .2rem; }
-  .ag-item { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: .7rem; align-items: center; padding: .5rem .6rem; border: 1.5px solid var(--line); border-radius: calc(.8rem * var(--raio)); background: var(--card); }
+  .ag-lista { display: grid; gap: calc(.5rem * var(--esp)); max-height: 32rem; overflow: auto; padding: 0 .9rem 0 0; scrollbar-gutter: stable; scrollbar-width: thin; }
+  .ag-item { display: grid; grid-template-columns: 5rem minmax(0, 1fr) auto; gap: .7rem; cursor: pointer; align-items: center; padding: .5rem .6rem; border: 1.5px solid var(--line); border-radius: calc(.8rem * var(--raio)); background: var(--card); }
   .ag-data { display: grid; justify-items: center; padding: .35rem .2rem; border-radius: .6rem; text-align: center; line-height: 1.2; font-variant-numeric: tabular-nums; }
   .ag-data b { font-size: .95rem; }
   .ag-data small { font-size: .68rem; opacity: .85; white-space: nowrap; }
@@ -25,3 +25,9 @@
   .ag-msg { margin: .5rem 0; color: var(--soft); font-size: .85rem; overflow-wrap: anywhere; }
   .ag-msg.erro { color: var(--erro); font-weight: 600; }
   #ag-int.erro { border-color: var(--erro); }
+  .ag-item:hover { border-color: var(--cor); }
+  .ag-item:focus-visible { outline: 3px solid var(--cor); outline-offset: 2px; }
+  .ag-chk { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; padding: 0; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: transparent; cursor: pointer; font-size: .85rem; line-height: 1; }
+  .ag-chk:hover { border-color: #0B7C6D; color: #0B7C6D; }
+  .ag-item.feita .ag-chk { background: #0B7C6D; border-color: #0B7C6D; color: #fff; }
+  #dlg-ag .pl-form input[type="date"], #dlg-ag .pl-form input[type="time"] { width: 100%; }
