@@ -2,7 +2,7 @@
 (() => {
   const intervaloInicio = () => { const p = cfg.planilha, c = String(p.campos.inicio || 'B').toUpperCase(); return c + p.linhaInicial + ':' + c; };
   const GRAF_PADRAO = [
-    { id: 'g4', titulo: 'Desenvolvimento semanal', tipo: 'linhas', aba: 'Banco', intervalo: 'Q18:S25', ativo: true },
+    { id: 'g4', titulo: 'Desenvolvimento semanal', tipo: 'linhas', aba: 'Banco', intervalo: 'Q18:S25', ativo: true, imp: true },
     { id: 'g3', titulo: 'Estudo mensal anual', tipo: 'barras', aba: 'Banco', intervalo: 'Q3:S14', ativo: true },
     { id: 'g1', titulo: 'Estudo mensal', tipo: 'barras', aba: 'Banco', intervalo: 'I3:K', ativo: true },
     { id: 'g2', titulo: 'Estudo anual', tipo: 'barras', aba: 'Banco', intervalo: 'M3:O', ativo: true },
@@ -22,6 +22,9 @@
     cfg.histograma = 1; LS.set('pomo-cfg', cfg);
   }
 
+  // uma vez só: o semanal passa a marcar os dias com itens "Imp" da agenda
+  if (cfg.impOk !== 1) { const g4 = cfg.graficos.find(x => x.id === 'g4'); if (g4 && g4.imp === undefined) g4.imp = true; cfg.impOk = 1; LS.set('pomo-cfg', cfg); }
+
   const corCss = (v, padrao) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || padrao;
   const CORES = { get liq() { return corCss('--g-liq', '#4B3BFF'); }, get per() { return corCss('--g-per', '#E08A00'); } };
   const CACHE = 'pomo-graficos', ABERTO = 'pomo-graf-aberto', TTL = 10 * 60 * 1000;
@@ -30,11 +33,16 @@
   const sig = g => g.aba + '!' + g.intervalo + (g.tipo === 'histograma' ? '#h' : (g.anterior ? '+' + g.anterior : '') + (g.diaSemana ? '#d' : ''));
   const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   // dia da semana de uma linha [rótulo, líquido, perdido, data ISO]: usa a data da célula; se faltar, tenta ler dd/mm[/aaaa] do rótulo
-  function diaSem(l) {
+  function dataLinha(l) {
     let d = /^\d{4}-\d{2}-\d{2}T/.test(l[3] || '') ? new Date(l[3]) : null;
     if (!d) { const m = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/.exec(l[0] || ''); if (m) d = new Date(m[3] ? (+m[3] < 100 ? 2000 + +m[3] : +m[3]) : new Date().getFullYear(), +m[2] - 1, +m[1]); }
-    return d && !isNaN(d) ? DIAS[d.getDay()] : null;
+    return d && !isNaN(d) ? d : null;
   }
+  const diaSem = l => { const d = dataLinha(l); return d ? DIAS[d.getDay()] : null; };
+  // itens da categoria "Imp" da agenda que caem num dia (nome + hora)
+  const impDoDia = d => (window.Agenda ? [...window.Agenda.fontes.values()] : []).flatMap(f => f())
+    .filter(x => /^imp/i.test(x.cat) && x.t[0] === d.getFullYear() && x.t[1] === d.getMonth() && x.t[2] === d.getDate())
+    .map(x => x.desc + (x.hora ? ' · ' + x.hora : ''));
   const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const sv = (tag, attrs, txt) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; };
 
@@ -44,7 +52,7 @@
   const passoN = max => [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000].find(p => max / p <= 5) || 2000;
 
   /* ---------- desenho do gráfico (SVG feito à mão, sem bibliotecas) ---------- */
-  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h', dicas) {
+  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h', dicas, marcas) {
     const velho = plot.querySelector('svg'); if (velho) velho.remove();
     tip.hidden = true;
     const W = Math.max(260, plot.clientWidth), H = 240, ML = 46, MR = 10, MT = 12, MB = 30;
@@ -68,6 +76,14 @@
       svg.append(sv('text', { x: ML + gw * (i + .5), y: H - 10, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--soft)' }, r.length > 9 ? r.slice(0, 8) + '…' : r));
     });
 
+    // dias com algo importante: faixa avermelhada e selo "!" no topo
+    if (marcas) marcas.forEach((n, i) => {
+      if (!n) return;
+      const cx = ML + gw * (i + .5);
+      svg.append(sv('rect', { x: ML + gw * i, y: MT, width: gw, height: ph, fill: '#E5484D', opacity: 0.12 }),
+        sv('circle', { cx, cy: MT + 9, r: 8, fill: '#E5484D' }),
+        sv('text', { x: cx, y: MT + 13, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, fill: '#fff' }, '!'));
+    });
     const marca = sv('rect', { y: MT, height: ph, width: gw, fill: 'var(--ink)', opacity: 0.06, visibility: 'hidden' });
     svg.append(marca);
 
@@ -100,6 +116,10 @@
         const p = h('i'); p.style.background = s.cor;
         l.append(p, document.createTextNode(s.nome + ': ' + (unid === 'n' ? s.valores[i] : horaTxt(s.valores[i])))); tip.append(l);
       });
+      if (marcas && marcas[i]) {
+        const t2 = h('b', null, 'Importante'); t2.style.marginTop = '.3rem'; tip.append(t2);
+        marcas[i].forEach(nm => { const l = h('div', 'gf-tip-l'), p = h('i'); p.style.background = '#E5484D'; l.append(p, document.createTextNode(nm)); tip.append(l); });
+      }
       tip.hidden = false;
       const cx = (ML + gw * (i + .5)) / esc;
       tip.style.left = Math.max(0, Math.min(cx + 12, plot.clientWidth - tip.offsetWidth)) + 'px';
@@ -123,7 +143,7 @@
     let ultimo = null, larg = 0;
 
     const aviso = (t, erro) => { msg.textContent = t; msg.className = 'gf-msg' + (erro ? ' erro' : ''); msg.hidden = !t; };
-    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid, ultimo.dicas); } };
+    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid, ultimo.dicas, ultimo.marcas); } };
 
     // histograma: quantas vezes você começou a estudar em cada faixa de horário do dia
     function histograma(d) {
@@ -160,7 +180,8 @@
       const series = [{ nome: 'Tempo líquido', chave: 'liq', cor: CORES.liq, valores: liq, oculta: ocultas.has('liq') }];
       if (per.some(x => x > 0)) series.push({ nome: 'Perdido', chave: 'per', cor: CORES.per, valores: per, oculta: ocultas.has('per') });
       if (ant) series.push({ nome: 'Anterior', chave: 'ant', cor: CORES.liq, fundo: true, valores: ant, oculta: ocultas.has('ant') });
-      ultimo = { rot, series, dicas };
+      const marcas = g.imp ? linhas.map(l => { const d = dataLinha(l), n = d ? impDoDia(d) : []; return n.length ? n : null; }) : null;
+      ultimo = { rot, series, dicas, marcas };
       const soma = a => a.reduce((s, x) => s + x, 0);
       sub.textContent = 'Líquido ' + horaTxt(soma(liq)) + (per.some(x => x > 0) ? ' · Perdido ' + horaTxt(soma(per)) : '') + (ant ? ' · Anterior ' + horaTxt(soma(ant)) : '');
       series.forEach(s => {
@@ -170,6 +191,7 @@
         b.onclick = () => { const k = s.chave; if (ocultas.has(k)) ocultas.delete(k); else if (series.filter(x => !x.oculta).length > 1) ocultas.add(k); atualizar(); };
         leg.append(b);
       });
+      if (marcas && marcas.some(Boolean)) { const lg = h('span', 'gf-leg-imp'); lg.append(h('b', null, '!'), document.createTextNode('Importante')); leg.append(lg); }
       pintar();
     }
     const ro = new ResizeObserver(() => { if (plot.clientWidth !== larg) pintar(); });
@@ -210,6 +232,7 @@
     if (!c._cards.length) { const p = h('p', 'gf-msg', 'Nenhum gráfico ativo. Ative ou adicione em Configurações → Gráficos.'); c.append(p); }
     c._cards.forEach(x => x.atualizar());
   }
+  document.addEventListener('agenda-atualizada', () => renderizarTudo());   // a agenda chegou ou mudou: remarca os dias
   function renderizarTudo() { alvos().forEach(renderizar); rodape(); }
 
   function rodape() {
@@ -294,6 +317,10 @@
         dc.onchange = () => { g.diaSemana = dc.checked; guardar(); };
         dl.append(dc, document.createTextNode(' Mostrar o dia da semana (Seg, Ter…) no eixo, quando a primeira coluna for uma data'));
         it.append(dl);
+        const il = h('label', 'teste'), ic = h('input'); ic.type = 'checkbox'; ic.checked = !!g.imp;
+        ic.onchange = () => { g.imp = ic.checked; guardar(); };
+        il.append(ic, document.createTextNode(' Marcar os dias com itens "Imp" da agenda (a primeira coluna deve ser uma data)'));
+        it.append(il);
       }
       box.append(it);
     });

@@ -17,11 +17,12 @@ Containers.registrar('agenda', ctx => {
   const raiz = h('section', 'box ag-box');
   raiz.innerHTML = `
     <div class="box-topo"><h2 class="ag-titulo"></h2>
-      <div class="acoes-topo"><span class="ag-status" role="status"></span>
+      <div class="acoes-topo">
         <button type="button" class="mini ag-nova" title="Adicionar item na agenda">+ Novo</button>
         <button type="button" class="mini ag-atualizar" title="Atualizar agenda" aria-label="Atualizar agenda">↻</button>
         <button type="button" class="mini ag-engrenagem" title="De onde ler" aria-label="Configurar a agenda" aria-expanded="false">⚙</button></div>
     </div>
+    <p class="status-linha ag-status" role="status"></p>
     <div class="ag-cfg" hidden>
       <p class="dica">Colunas, nesta ordem: Status, ID, Descrição, Horas, Categoria, Rest, Data. A cor da data muda conforme os dias que faltam.</p>
       <div class="sh-2">
@@ -36,6 +37,10 @@ Containers.registrar('agenda', ctx => {
     </div>
     <div class="ag-lista"></div>`;
   const q = s => raiz.querySelector(s);
+  // outros containers (ex.: o gráfico semanal) leem os itens da agenda por aqui
+  window.Agenda = window.Agenda || { fontes: new Map() };
+  window.Agenda.fontes.set(ctx.id, () => est.itens);
+  const avisarMudou = () => document.dispatchEvent(new Event('agenda-atualizada'));
   const lista = q('.ag-lista');
 
   const dlg = h('dialog', 'dlg-ag');
@@ -143,7 +148,7 @@ Containers.registrar('agenda', ctx => {
       const d = await Sheets.ler(a().aba, a().intervalo, { retorno: ['exibidos', 'valores'], limite: 3000 });
       if (!d.ok) throw new Error(d.erro || 'resposta inesperada');
       est.itens = converter(d); est.sig = sig(); est.em = Date.now();
-      salvarCache();
+      salvarCache(); avisarMudou();
     } catch (err) {
       est.erro = err.message;
     } finally { est.carregando = false; render(); rodape(); }
@@ -252,7 +257,12 @@ Containers.registrar('agenda', ctx => {
 
   return {
     raiz,
-    iniciar() { mostrarCfg(); render(); rodape(); if (ctx.visivel()) carregar(); },
+    iniciar() {
+      mostrarCfg(); render(); rodape(); avisarMudou(); if (ctx.visivel()) carregar();
+      // apagadinho quando fora da vista, igual aos gráficos
+      if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => raiz.classList.toggle('em-foco', en.isIntersecting), { rootMargin: '0px 0px -45% 0px' }).observe(raiz);
+      else raiz.classList.add('em-foco');
+    },
     aparecer() { render(); carregar(); }
   };
 });
