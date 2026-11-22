@@ -1,6 +1,6 @@
 /* Service worker do Painel de Estudos
    Para forçar a atualização do app em todos os aparelhos, mude o número da VERSAO. */
-const VERSAO = 'v3';
+const VERSAO = 'v4';
 const CACHE = 'painel-estudos-' + VERSAO;
 
 const ARQUIVOS = [
@@ -13,7 +13,7 @@ const ARQUIVOS = [
   './css/grade.css?v=1',
   './css/planilha.css?v=1',
   './css/graficos.css?v=1',
-  './css/agenda.css?v=1',
+  './css/agenda.css?v=2',
   './css/aparencia.css?v=1',
   './js/tema.js?v=1',
   './js/core/sheets.js?v=1',
@@ -21,7 +21,9 @@ const ARQUIVOS = [
   './js/planilha.js?v=1',
   './js/grade.js?v=1',
   './js/graficos.js?v=1',
-  './js/agenda.js?v=1',
+  './js/core/containers.js?v=1',
+  './js/containers/agenda.js?v=1',
+  './js/paginas.js?v=1',
   './js/aparencia.js?v=1'
 ];
 

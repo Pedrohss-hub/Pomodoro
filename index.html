@@ -37,35 +37,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;800&display=swap" rel="stylesheet">
-<dialog id="dlg-ag">
-  <div class="dlg-corpo">
-    <div class="dlg-topo"><h2 id="ag-titulo">Item da agenda</h2><button type="button" class="fechar">Fechar</button></div>
-    <form id="ag-form" class="pl-form" autocomplete="off">
-      <label><span>Descrição</span><input type="text" id="ag-f-desc" maxlength="120"></label>
-      <div class="pl-2">
-        <label><span>Data</span><input type="date" id="ag-f-data"></label>
-        <label><span>Hora (opcional)</span><input type="time" id="ag-f-hora"></label>
-      </div>
-      <label><span>Categoria</span><input type="text" id="ag-f-cat" list="ag-cats" maxlength="40"></label>
-      <datalist id="ag-cats"></datalist>
-      <label class="teste" id="ag-feita-l"><input type="checkbox" id="ag-f-feita"> Concluído</label>
-      <p class="pl-erro" id="ag-erro" role="alert" hidden></p>
-      <div class="pl-btns">
-        <button type="button" class="pl-btn perigo" id="ag-excluir">Excluir</button>
-        <span class="grow"></span>
-        <button type="button" class="pl-btn" id="ag-cancelar">Cancelar</button>
-        <button type="submit" class="pl-btn pri" id="ag-salvar">Salvar</button>
-      </div>
-    </form>
-  </div>
-</dialog>
 
 <script src="js/tema.js?v=1"></script>
 <link rel="stylesheet" href="css/base.css?v=1">
 <link rel="stylesheet" href="css/grade.css?v=1">
 <link rel="stylesheet" href="css/planilha.css?v=1">
 <link rel="stylesheet" href="css/graficos.css?v=1">
-<link rel="stylesheet" href="css/agenda.css?v=1">
+<link rel="stylesheet" href="css/agenda.css?v=2">
 <link rel="stylesheet" href="css/aparencia.css?v=1">
 </head>
 <body data-modo="foco">
@@ -123,12 +101,6 @@
   </div>
 
   <div class="painel-estudo">
-  <section class="box" id="ag-det">
-    <div class="box-topo"><h2>Agenda</h2>
-      <div class="acoes-topo"><span id="ag-status" role="status"></span><button type="button" class="mini" id="ag-nova" title="Adicionar item na agenda">+ Novo</button><button type="button" class="mini" id="ag-atualizar" title="Atualizar agenda" aria-label="Atualizar agenda">↻</button></div>
-    </div>
-    <div class="ag-lista" id="ag-lista"></div>
-  </section>
   <section class="box" id="gf-det">
     <div class="box-topo"><h2>Gráficos de estudo</h2>
       <div class="acoes-topo"><span class="gf-status" role="status"></span><button type="button" class="mini gf-atualizar" title="Atualizar gráficos" aria-label="Atualizar gráficos">↻</button></div>
@@ -292,19 +264,6 @@
           <button type="button" id="gf-restaurar">Restaurar padrão</button>
         </div>
       </div></details>
-      <details class="sh" id="ag-cfg-det">
-        <summary>Agenda: de onde ler</summary><div class="cx-corpo">
-        <p class="dica" style="margin-top:.6rem">Colunas, nesta ordem: Status, ID, Descrição, Horas, Categoria, Rest, Data. A cor da data muda conforme os dias que faltam.</p>
-        <div class="sh-2">
-          <div><label class="campo" for="ag-aba">Aba</label><input type="text" id="ag-aba" list="sh-abas" autocomplete="off"></div>
-          <div><label class="campo" for="ag-int">Células (ex.: A3:G)</label><input type="text" id="ag-int" autocomplete="off"></div>
-        </div>
-        <div class="sh-2" style="margin-top:.6rem">
-          <div><label class="campo" for="ag-verm">Vermelho até (dias)</label><input type="number" id="ag-verm" min="0"></div>
-          <div><label class="campo" for="ag-amar">Amarelo até (dias)</label><input type="number" id="ag-amar" min="0"></div>
-        </div>
-        <label class="teste" style="margin-top:.6rem"><input type="checkbox" id="ag-conc"> Mostrar também os itens concluídos</label>
-      </div></details>
       <details class="sh" id="av-det">
         <summary>Avançado: falar direto com o script</summary><div class="cx-corpo">
         <p class="dica" style="margin-top:.6rem">O Apps Script é genérico (ler, escrever, anexar, limpar, abas, info, lote). Aqui você manda um pedido em JSON e vê a resposta. Ações que gravam pedem confirmação.</p>
@@ -401,7 +360,9 @@
 <script src="js/planilha.js?v=1"></script>
 <script src="js/grade.js?v=1"></script>
 <script src="js/graficos.js?v=1"></script>
-<script src="js/agenda.js?v=1"></script>
+<script src="js/core/containers.js?v=1"></script>
+<script src="js/containers/agenda.js?v=1"></script>
+<script src="js/paginas.js?v=1"></script>
 <script src="js/aparencia.js?v=1"></script>
 <script>
 if ('serviceWorker' in navigator) {
