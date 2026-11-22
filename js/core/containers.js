@@ -46,5 +46,8 @@ const Containers = (() => {
     try { if (v.visivel() && v.inst.aparecer) v.inst.aparecer(); } catch (err) { console.error(err); }
   }));
 
-  return { registrar, montar, def, ajustar };
+  const todas = () => Object.keys(bases).map(id => def(id));     // definições de agora (padrão + o que você mudou), prontas para colar em js/paginas.js
+  const limparAjustes = () => { Object.keys(bases).forEach(id => { ajustes[id] = {}; }); LS.set(CHAVE, ajustes); };   // {} (e não apagar) para não herdar de novo a configuração antiga
+
+  return { registrar, montar, def, ajustar, todas, limparAjustes };
 })();

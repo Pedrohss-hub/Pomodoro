@@ -43,10 +43,11 @@
   // Hora ou duração vira horas (número); número puro segue a opção "formato dos tempos"
   function emHoras(valor, formato, exibido) {
     if (exibido === '' || exibido == null) return null;
-    if (/[hH\[]/.test(formato || '')) {
-      const m = String(exibido).trim().match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?/);
-      return m ? Number(m[1]) + Number(m[2]) / 60 + (Number(m[3]) || 0) / 3600 : null;
-    }
+    const t = String(exibido).trim(), f = formato || '';
+    const m = t.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?/);                 // 12:30 ou 12:30:00 (hora, duração ou texto)
+    if (m && (/[hH\[]/.test(f) || typeof valor !== 'number')) return Number(m[1]) + Number(m[2]) / 60 + (Number(m[3]) || 0) / 3600;
+    const u = /^\[(h+|m+|s+)\]/i.exec(f);                                  // duração só em horas, minutos ou segundos: [h], [m], [s]
+    if (u && /^-?\d+([.,]\d+)?$/.test(t)) { const n = Number(t.replace(',', '.')), k = u[1][0].toLowerCase(); return k === 'h' ? n : k === 'm' ? n / 60 : n / 3600; }
     if (typeof valor === 'number') return cfg.planilha.formatoTempo === 'min' ? valor / 60 : valor * 24;
     return null;
   }

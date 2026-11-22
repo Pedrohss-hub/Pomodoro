@@ -17,13 +17,13 @@ const ARQUIVOS = [
   './css/aparencia.css?v=1',
   './js/tema.js?v=1',
   './js/core/sheets.js?v=1',
-  './js/pomodoro.js?v=2',
+  './js/pomodoro.js?v=3',
   './js/planilha.js?v=1',
   './js/grade.js?v=1',
-  './js/containers/graficos.js?v=1',
-  './js/core/containers.js?v=1',
+  './js/containers/graficos.js?v=2',
+  './js/core/containers.js?v=2',
   './js/containers/agenda.js?v=2',
-  './js/paginas.js?v=2',
+  './js/paginas.js?v=3',
   './js/aparencia.js?v=1'
 ];
 

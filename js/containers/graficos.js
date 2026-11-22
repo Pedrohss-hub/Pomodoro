@@ -167,13 +167,14 @@ Containers.registrar('graficos', ctx => {
       const liq = linhas.map(l => l[1] || 0), per = linhas.map(l => l[2] || 0);
       const ant = d.ant && d.ant.length ? d.ant.map(l => l[1] || 0) : null;
       const series = [{ nome: 'Tempo líquido', chave: 'liq', cor: CORES.liq, valores: liq, oculta: ocultas.has('liq') }];
-      if (per.some(x => x > 0)) series.push({ nome: 'Perdido', chave: 'per', cor: CORES.per, valores: per, oculta: ocultas.has('per') });
+      const temPer = d.tres === undefined ? per.some(x => x > 0) : d.tres;      // intervalo com 3 colunas = mostra o perdido, mesmo que seja zero
+      if (temPer) series.push({ nome: 'Perdido', chave: 'per', cor: CORES.per, valores: per, oculta: ocultas.has('per') });
       if (ant) series.push({ nome: 'Anterior', chave: 'ant', cor: CORES.liq, fundo: true, valores: ant, oculta: ocultas.has('ant') });
       const marcas = g.imp ? linhas.map(l => { const d = dataLinha(l), n = d ? impDoDia(d) : []; return n.length ? n : null; }) : null;
       const hj = new Date(), hoje = linhas.findIndex(l => { const d = dataLinha(l); return d && d.getFullYear() === hj.getFullYear() && d.getMonth() === hj.getMonth() && d.getDate() === hj.getDate(); });
       ultimo = { rot, series, dicas, marcas, hoje: hoje >= 0 ? hoje : null };
       const soma = a => a.reduce((s, x) => s + x, 0);
-      sub.textContent = 'Líquido ' + horaTxt(soma(liq)) + (per.some(x => x > 0) ? ' · Perdido ' + horaTxt(soma(per)) : '') + (ant ? ' · Anterior ' + horaTxt(soma(ant)) : '');
+      sub.textContent = 'Líquido ' + horaTxt(soma(liq)) + (temPer ? ' · Perdido ' + horaTxt(soma(per)) : ' · sem coluna de perdido (use 3 colunas)') + (temPer && d.linhas.every(l => l[2] == null) ? ' · não entendi o formato do perdido' : '') + (ant ? ' · Anterior ' + horaTxt(soma(ant)) : '');
       series.forEach(s => {
         const b = h('button', 'gf-leg-b' + (s.oculta ? ' off' : '')); b.type = 'button';
         const p = h('i'); p.style.background = s.cor; if (s.fundo) p.style.opacity = 0.35; b.append(p, document.createTextNode(s.nome));
@@ -203,7 +204,7 @@ Containers.registrar('graficos', ctx => {
     const tres = ex.length && ex[0].length >= 3;
     return {
       linhas: ex.map((e, i) => [String(e[0]).trim(), emHoras(va[i][1], fo[i][1], e[1]), tres ? emHoras(va[i][2], fo[i][2], e[2]) : null, String((va[i] || [])[0] || '')]).slice(-500),
-      amostra: ex.slice(0, 3)
+      amostra: ex.slice(0, 3), tres: !!tres
     };
   }
 

@@ -249,6 +249,16 @@
         </div>
         <p class="dica" id="sh-msg" role="status"></p>
       </div></details>
+      <details class="sh" id="ct-det">
+        <summary>Containers: levar a configuração para outros aparelhos</summary><div class="cx-corpo">
+        <p class="dica" style="margin-top:.6rem">Agenda e gráficos guardam a configuração só neste navegador. Para o celular ficar igual: copie a configuração, cole em <b>js/paginas.js</b>, envie ao GitHub e, no celular, use "Usar a do projeto".</p>
+        <div class="sh-btns">
+          <button type="button" id="ct-copiar">Copiar a configuração daqui</button>
+          <button type="button" id="ct-limpar">Usar a do projeto (apagar mudanças deste aparelho)</button>
+        </div>
+        <textarea id="ct-saida" rows="8" spellcheck="false" hidden style="width:100%;margin-top:.6rem;font-family:ui-monospace,monospace;font-size:.75rem"></textarea>
+        <p class="dica" id="ct-msg" role="status"></p>
+      </div></details>
       <details class="sh" id="av-det">
         <summary>Avançado: falar direto com o script</summary><div class="cx-corpo">
         <p class="dica" style="margin-top:.6rem">O Apps Script é genérico (ler, escrever, anexar, limpar, abas, info, lote). Aqui você manda um pedido em JSON e vê a resposta. Ações que gravam pedem confirmação.</p>
@@ -330,13 +340,13 @@
 </dialog>
 
 <script src="js/core/sheets.js?v=1"></script>
-<script src="js/pomodoro.js?v=2"></script>
+<script src="js/pomodoro.js?v=3"></script>
 <script src="js/planilha.js?v=1"></script>
 <script src="js/grade.js?v=1"></script>
-<script src="js/core/containers.js?v=1"></script>
+<script src="js/core/containers.js?v=2"></script>
 <script src="js/containers/agenda.js?v=2"></script>
-<script src="js/containers/graficos.js?v=1"></script>
-<script src="js/paginas.js?v=2"></script>
+<script src="js/containers/graficos.js?v=2"></script>
+<script src="js/paginas.js?v=3"></script>
 <script src="js/aparencia.js?v=1"></script>
 <script>
 if ('serviceWorker' in navigator) {
