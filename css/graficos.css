@@ -1,7 +1,7 @@
 /* Gráficos de estudo. */
   /* gráficos de estudo */
-  #gf-det { opacity: .5; filter: saturate(.45); transition: opacity .35s ease, filter .35s ease; }
-  #gf-det:hover, #gf-det:focus-within, #gf-det.em-foco { opacity: 1; filter: none; }
+  .gf-box { opacity: .5; filter: saturate(.45); transition: opacity .35s ease, filter .35s ease; }
+  .gf-box:hover, .gf-box:focus-within, .gf-box.em-foco { opacity: 1; filter: none; }
   .gf-barra { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin: .75rem 0 1rem; }
   .gf-status { color: var(--soft); font-size: .8rem; }
   .gf-grade { display: grid; gap: calc(1rem * var(--esp)); grid-template-columns: 1fr; }
@@ -19,7 +19,7 @@
   .gf-tip-l { display: flex; align-items: center; gap: .35rem; }
   .gf-msg { margin: .5rem 0; color: var(--soft); font-size: .85rem; overflow-wrap: anywhere; }
   .gf-msg.erro { color: var(--erro); font-weight: 600; }
-  #dlg-graficos { width: min(72rem, 96vw); max-width: none; max-height: 92vh; overflow: auto; }
+  .gf-dlg { width: min(72rem, 96vw); max-width: none; max-height: 92vh; overflow: auto; }
   .gf-cfg-item { display: grid; gap: .4rem; padding: .6rem 0; border-bottom: 1px solid var(--line); }
   .gf-cfg-l1 { display: grid; grid-template-columns: auto 1fr auto auto auto; gap: .5rem; align-items: center; }
   .gf-cfg-l2 { display: grid; grid-template-columns: 7rem 1fr 1fr; gap: .5rem; }
@@ -30,7 +30,7 @@
   .gf-cfg-item input[type="text"] { width: 100%; }
 
   /* colunas pela largura do próprio espaço (seção ou janela); o gráfico que sobra no fim fica centralizado */
-  #gf-det, #dlg-graficos .dlg-corpo { container-type: inline-size; }
+  .gf-box, .gf-dlg .dlg-corpo { container-type: inline-size; }
   @container (min-width: 46rem) {
     .gf-grade { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .gf-grade > .gf-card { grid-column: span 2; }
@@ -44,6 +44,7 @@
     .gf-grade > .gf-card:last-child:nth-child(3n+2) { grid-column: 4 / span 2; }
   }
   .gf-leg-imp { display: inline-flex; align-items: center; gap: .35rem; padding: .1rem .55rem; font-size: .75rem; font-weight: 600; color: var(--soft); }
-  .gf-leg-imp b { display: grid; place-items: center; width: 1rem; height: 1rem; border-radius: 50%; background: #E5484D; color: #fff; font-size: .65rem; }
+  .gf-leg-imp b { width: .55rem; height: .55rem; background: #C9A227; opacity: .85; transform: rotate(45deg); border-radius: 1px; }
   .gf-tip { max-width: 16rem; }
   .gf-tip-l { white-space: normal; }
+  .gf-cfg { margin-bottom: .9rem; }

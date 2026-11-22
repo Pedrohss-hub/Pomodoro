@@ -9,10 +9,10 @@ const ARQUIVOS = [
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
-  './css/base.css?v=1',
+  './css/base.css?v=2',
   './css/grade.css?v=1',
   './css/planilha.css?v=1',
-  './css/graficos.css?v=2',
+  './css/graficos.css?v=3',
   './css/agenda.css?v=3',
   './css/aparencia.css?v=1',
   './js/tema.js?v=1',
@@ -20,10 +20,10 @@ const ARQUIVOS = [
   './js/pomodoro.js?v=2',
   './js/planilha.js?v=1',
   './js/grade.js?v=1',
-  './js/graficos.js?v=2',
+  './js/containers/graficos.js?v=1',
   './js/core/containers.js?v=1',
   './js/containers/agenda.js?v=2',
-  './js/paginas.js?v=1',
+  './js/paginas.js?v=2',
   './js/aparencia.js?v=1'
 ];
 

@@ -80,7 +80,7 @@
     details::details-content { block-size: 0; overflow-y: clip; transition: block-size .3s ease, content-visibility .3s allow-discrete; }
     details[open]::details-content { block-size: auto; }
   }
-  @media (prefers-reduced-motion: reduce) { details::details-content, details > summary::after, #gf-det { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { details::details-content, details > summary::after, .gf-box, .ag-box { transition: none; } }
   .config { display: grid; gap: .9rem; margin-top: 1rem; }
   .tres { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; }
   .tres span { display: block; font-size: .85rem; color: var(--soft); margin-bottom: .25rem; }

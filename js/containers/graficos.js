@@ -1,5 +1,7 @@
-/* Gráficos de estudo. Depende de pomodoro.js. */
-(() => {
+/* Tipo de container "graficos": gráficos de barras, linhas e histograma lidos de intervalos da planilha, desenhados em SVG,
+   com período anterior apagado, dia da semana, marcas de itens "Imp" da agenda, cache e janela ampliada (botão Gráficos do topo).
+   Configuração (em js/paginas.js): { titulo, graficos: [lista] } (null = lista padrão; o ⚙ do quadro edita a lista). */
+Containers.registrar('graficos', ctx => {
   const intervaloInicio = () => { const p = cfg.planilha, c = String(p.campos.inicio || 'B').toUpperCase(); return c + p.linhaInicial + ':' + c; };
   const GRAF_PADRAO = [
     { id: 'g4', titulo: 'Desenvolvimento semanal', tipo: 'linhas', aba: 'Banco', intervalo: 'Q18:S25', ativo: true, imp: true },
@@ -8,26 +10,14 @@
     { id: 'g2', titulo: 'Estudo anual', tipo: 'barras', aba: 'Banco', intervalo: 'M3:O', ativo: true },
     { id: 'g5', titulo: 'Horários de início', tipo: 'histograma', aba: cfg.planilha.aba, intervalo: intervaloInicio(), passo: 60, ativo: true }
   ];
-  if (!Array.isArray(cfg.graficos)) cfg.graficos = JSON.parse(JSON.stringify(GRAF_PADRAO));
-  // uma vez só: leva o semanal e o mensal anual para a frente dos gráficos que já estavam salvos
-  if (cfg.ordemGraficos !== 2) {
-    const frente = ['g4', 'g3'], pos = g => { const k = frente.indexOf(g.id); return k < 0 ? 99 : k; };
-    cfg.graficos = cfg.graficos.map((g, i) => [g, i]).sort((a, b) => pos(a[0]) - pos(b[0]) || a[1] - b[1]).map(x => x[0]);
-    cfg.ordemGraficos = 2; LS.set('pomo-cfg', cfg);
-  }
-
-  // uma vez só: acrescenta o histograma a quem já tinha a lista salva
-  if (cfg.histograma !== 1) {
-    if (!cfg.graficos.some(g => g.id === 'g5')) cfg.graficos.push(JSON.parse(JSON.stringify(GRAF_PADRAO.find(g => g.id === 'g5'))));
-    cfg.histograma = 1; LS.set('pomo-cfg', cfg);
-  }
-
-  // uma vez só: o semanal passa a marcar os dias com itens "Imp" da agenda
-  if (cfg.impOk !== 1) { const g4 = cfg.graficos.find(x => x.id === 'g4'); if (g4 && g4.imp === undefined) g4.imp = true; cfg.impOk = 1; LS.set('pomo-cfg', cfg); }
+  // lista de gráficos: a do código (padrão) ou a que você montou (fica neste navegador, em ct-defs-v1)
+  const graficos = JSON.parse(JSON.stringify(ctx.def().graficos || GRAF_PADRAO));
+  const persistir = () => ctx.ajustar({ graficos });
 
   const corCss = (v, padrao) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || padrao;
+  const IMP = '#C9A227';   // dourado discreto para os dias importantes
   const CORES = { get liq() { return corCss('--g-liq', '#4B3BFF'); }, get per() { return corCss('--g-per', '#E08A00'); } };
-  const CACHE = 'pomo-graficos', ABERTO = 'pomo-graf-aberto', TTL = 10 * 60 * 1000;
+  const CACHE = 'ct-cache-' + ctx.id, TTL = 10 * 60 * 1000;
   const salvoCache = LS.get(CACHE, null) || {};
   const estado = { dados: salvoCache.dados || {}, em: salvoCache.em || 0, carregando: false, erro: '' };
   const sig = g => g.aba + '!' + g.intervalo + (g.tipo === 'histograma' ? '#h' : (g.anterior ? '+' + g.anterior : '') + (g.diaSemana ? '#d' : ''));
@@ -52,7 +42,7 @@
   const passoN = max => [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000].find(p => max / p <= 5) || 2000;
 
   /* ---------- desenho do gráfico (SVG feito à mão, sem bibliotecas) ---------- */
-  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h', dicas, marcas) {
+  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h', dicas, marcas, hoje) {
     const velho = plot.querySelector('svg'); if (velho) velho.remove();
     tip.hidden = true;
     const W = Math.max(260, plot.clientWidth), H = 240, ML = 46, MR = 10, MT = 12, MB = 30;
@@ -72,17 +62,16 @@
     }
     const cada = Math.ceil(n / Math.max(1, Math.floor(pw / 48)));
     rot.forEach((r, i) => {
-      if (i % cada) return;
-      svg.append(sv('text', { x: ML + gw * (i + .5), y: H - 10, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--soft)' }, r.length > 9 ? r.slice(0, 8) + '…' : r));
+      if (i % cada && i !== hoje) return;
+      svg.append(sv('text', { x: ML + gw * (i + .5), y: H - 10, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': i === hoje ? 700 : 400, fill: i === hoje ? 'var(--ink)' : 'var(--soft)' }, r.length > 9 ? r.slice(0, 8) + '…' : r));
     });
 
-    // dias com algo importante: faixa avermelhada e selo "!" no topo
+    // dias com algo importante: faixa dourada bem leve e um pequeno losango no topo (sem alarme)
     if (marcas) marcas.forEach((n, i) => {
       if (!n) return;
       const cx = ML + gw * (i + .5);
-      svg.append(sv('rect', { x: ML + gw * i, y: MT, width: gw, height: ph, fill: '#E5484D', opacity: 0.12 }),
-        sv('circle', { cx, cy: MT + 9, r: 8, fill: '#E5484D' }),
-        sv('text', { x: cx, y: MT + 13, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, fill: '#fff' }, '!'));
+      svg.append(sv('rect', { x: ML + gw * i, y: MT, width: gw, height: ph, fill: IMP, opacity: 0.12 }),
+        sv('polygon', { points: [[cx, MT + 2], [cx + 5, MT + 7], [cx, MT + 12], [cx - 5, MT + 7]].map(p => p.join(',')).join(' '), fill: IMP, opacity: 0.85 }));
     });
     const marca = sv('rect', { y: MT, height: ph, width: gw, fill: 'var(--ink)', opacity: 0.06, visibility: 'hidden' });
     svg.append(marca);
@@ -93,7 +82,7 @@
         const pts = s.valores.map((v, i) => [ML + gw * (i + .5), y(v)]);
         const fx = s.fundo ? { 'stroke-dasharray': '5 4', opacity: 0.45 } : {};
         if (pts.length > 1) svg.append(sv('path', Object.assign({ d: pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' '), fill: 'none', stroke: s.cor, 'stroke-width': s.fundo ? 2 : 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, fx)));
-        pts.forEach(p => svg.append(sv('circle', Object.assign({ cx: p[0], cy: p[1], r: 3.5, fill: s.cor }, s.fundo ? { opacity: 0.45 } : {}))));
+        pts.forEach((p, i) => svg.append(sv('circle', Object.assign({ cx: p[0], cy: p[1], r: i === hoje && s.chave === 'liq' && !s.fundo ? 5.5 : 3.5, fill: s.cor }, s.fundo ? { opacity: 0.45 } : {}))));
       });
     } else {
       const prim = vis.filter(s => !s.fundo), k = Math.max(1, prim.length);
@@ -118,7 +107,7 @@
       });
       if (marcas && marcas[i]) {
         const t2 = h('b', null, 'Importante'); t2.style.marginTop = '.3rem'; tip.append(t2);
-        marcas[i].forEach(nm => { const l = h('div', 'gf-tip-l'), p = h('i'); p.style.background = '#E5484D'; l.append(p, document.createTextNode(nm)); tip.append(l); });
+        marcas[i].forEach(nm => { const l = h('div', 'gf-tip-l'), p = h('i'); p.style.background = IMP; l.append(p, document.createTextNode(nm)); tip.append(l); });
       }
       tip.hidden = false;
       const cx = (ML + gw * (i + .5)) / esc;
@@ -143,7 +132,7 @@
     let ultimo = null, larg = 0;
 
     const aviso = (t, erro) => { msg.textContent = t; msg.className = 'gf-msg' + (erro ? ' erro' : ''); msg.hidden = !t; };
-    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid, ultimo.dicas, ultimo.marcas); } };
+    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid, ultimo.dicas, ultimo.marcas, ultimo.hoje); } };
 
     // histograma: quantas vezes você começou a estudar em cada faixa de horário do dia
     function histograma(d) {
@@ -153,7 +142,7 @@
       const rot = cont.map((_, i) => { const m = i * passo, hh = String(Math.floor(m / 60)).padStart(2, '0'); return passo === 60 ? hh + 'h' : hh + ':' + String(m % 60).padStart(2, '0'); });
       [[60, '1 h'], [30, '30 min']].forEach(([v, t]) => {
         const b = h('button', 'gf-leg-b', t); b.type = 'button'; b.setAttribute('aria-pressed', String(passo === v));
-        b.onclick = () => { g.passo = v; LS.set('pomo-cfg', cfg); atualizar(); };
+        b.onclick = () => { g.passo = v; persistir(); atualizar(); };
         leg.append(b);
       });
       ultimo = { rot, unid: 'n', series: [{ nome: 'Inícios', chave: 'liq', cor: CORES.liq, valores: cont }] };
@@ -164,7 +153,7 @@
     function atualizar() {
       const v = plot.querySelector('svg'); if (v) v.remove();
       leg.replaceChildren(); sub.textContent = ''; ultimo = null; aviso('');
-      if (!cfg.url || !cfg.token) return aviso('Configure a URL e o token (Configurações) para ver os gráficos.');
+      if (!Sheets.pronto()) return aviso('Configure a URL e o token (Configurações) para ver os gráficos.');
       const d = estado.dados[g.id];
       if (!d || d.sig !== sig(g)) return aviso(estado.carregando ? 'Carregando…' : estado.erro ? 'Não consegui carregar: ' + estado.erro : 'Ainda sem dados. Use ↻ Atualizar.', !!estado.erro && !estado.carregando);
       if (d.erro) return aviso(d.erro, true);
@@ -181,7 +170,8 @@
       if (per.some(x => x > 0)) series.push({ nome: 'Perdido', chave: 'per', cor: CORES.per, valores: per, oculta: ocultas.has('per') });
       if (ant) series.push({ nome: 'Anterior', chave: 'ant', cor: CORES.liq, fundo: true, valores: ant, oculta: ocultas.has('ant') });
       const marcas = g.imp ? linhas.map(l => { const d = dataLinha(l), n = d ? impDoDia(d) : []; return n.length ? n : null; }) : null;
-      ultimo = { rot, series, dicas, marcas };
+      const hj = new Date(), hoje = linhas.findIndex(l => { const d = dataLinha(l); return d && d.getFullYear() === hj.getFullYear() && d.getMonth() === hj.getMonth() && d.getDate() === hj.getDate(); });
+      ultimo = { rot, series, dicas, marcas, hoje: hoje >= 0 ? hoje : null };
       const soma = a => a.reduce((s, x) => s + x, 0);
       sub.textContent = 'Líquido ' + horaTxt(soma(liq)) + (per.some(x => x > 0) ? ' · Perdido ' + horaTxt(soma(per)) : '') + (ant ? ' · Anterior ' + horaTxt(soma(ant)) : '');
       series.forEach(s => {
@@ -191,7 +181,7 @@
         b.onclick = () => { const k = s.chave; if (ocultas.has(k)) ocultas.delete(k); else if (series.filter(x => !x.oculta).length > 1) ocultas.add(k); atualizar(); };
         leg.append(b);
       });
-      if (marcas && marcas.some(Boolean)) { const lg = h('span', 'gf-leg-imp'); lg.append(h('b', null, '!'), document.createTextNode('Importante')); leg.append(lg); }
+      if (marcas && marcas.some(Boolean)) { const lg = h('span', 'gf-leg-imp'); lg.append(h('b'), document.createTextNode('Importante')); leg.append(lg); }
       pintar();
     }
     const ro = new ResizeObserver(() => { if (plot.clientWidth !== larg) pintar(); });
@@ -218,18 +208,40 @@
   }
 
   /* ---------- onde os gráficos aparecem ---------- */
-  const det = $('#gf-det'), dlg = $('#dlg-graficos');
-  const alvos = () => [
-    !$('#pg-pomo').hidden ? $('#gf-grade') : null,
-    dlg.open ? $('#gf-popup') : null
-  ].filter(Boolean);
+  const raiz = h('section', 'box gf-box');
+  raiz.innerHTML = `
+    <div class="box-topo"><h2 class="gf-titulo"></h2>
+      <div class="acoes-topo">
+        <button type="button" class="mini gf-atualizar" title="Atualizar gráficos" aria-label="Atualizar gráficos">↻</button>
+        <button type="button" class="mini gf-engrenagem" title="Escolher os gráficos" aria-label="Configurar os gráficos" aria-expanded="false">⚙</button></div>
+    </div>
+    <p class="status-linha gf-status" role="status"></p>
+    <div class="gf-cfg" hidden>
+      <p class="dica">Cada gráfico lê um intervalo de 3 colunas: rótulo (data), tempo líquido e perdido. Pode ter ou não o cabeçalho; linhas vazias no fim são ignoradas. Intervalos abertos como I3:K pegam tudo até a última linha.</p>
+      <div class="gf-cfg-lista"></div>
+      <div class="sh-btns"><button type="button" class="gf-add">+ Adicionar gráfico</button><button type="button" class="gf-restaurar">Restaurar padrão</button></div>
+    </div>
+    <div class="gf-grade"></div>`;
+  const dlg = h('dialog', 'gf-dlg');
+  dlg.innerHTML = `
+    <div class="dlg-corpo">
+      <div class="dlg-topo"><h2>Gráficos de estudo</h2><button type="button" class="fechar">Fechar</button></div>
+      <div class="gf-barra"><button type="button" class="mini gf-atualizar" title="Atualizar gráficos" aria-label="Atualizar gráficos">↻</button><span class="gf-status" role="status"></span></div>
+      <div class="gf-grade gf-popup"></div>
+    </div>`;
+  document.body.append(dlg);
+  dlg.addEventListener('click', ev => { if (ev.target === dlg) dlg.close(); });
+  dlg.querySelector('.fechar').onclick = () => dlg.close();
+  const q = x => raiz.querySelector(x), grade = q('.gf-grade'), popup = dlg.querySelector('.gf-popup');
+  q('.gf-titulo').textContent = ctx.def().titulo || 'Gráficos de estudo';
+  const alvos = () => [ctx.visivel() ? grade : null, dlg.open ? popup : null].filter(Boolean);
   const visivel = () => alvos().length > 0;
 
   function renderizar(c) {
     (c._cards || []).forEach(x => x.desligar());
-    c._cards = cfg.graficos.filter(g => g.ativo).map(cartao);
+    c._cards = graficos.filter(g => g.ativo).map(cartao);
     c.replaceChildren(...c._cards);
-    if (!c._cards.length) { const p = h('p', 'gf-msg', 'Nenhum gráfico ativo. Ative ou adicione em Configurações → Gráficos.'); c.append(p); }
+    if (!c._cards.length) { const p = h('p', 'gf-msg', 'Nenhum gráfico ativo. Ative ou adicione no ⚙ deste quadro.'); c.append(p); }
     c._cards.forEach(x => x.atualizar());
   }
   document.addEventListener('agenda-atualizada', () => renderizarTudo());   // a agenda chegou ou mudou: remarca os dias
@@ -237,12 +249,12 @@
 
   function rodape() {
     const t = estado.carregando ? 'Atualizando…' : estado.em ? 'Atualizado há ' + (Date.now() - estado.em < 60000 ? 'instantes' : Math.round((Date.now() - estado.em) / 60000) + ' min') : 'Ainda não atualizado';
-    document.querySelectorAll('.gf-status').forEach(e => { e.textContent = t + (estado.erro && !estado.carregando ? ' · falhou: ' + estado.erro : ''); });
+    [...raiz.querySelectorAll('.gf-status'), ...dlg.querySelectorAll('.gf-status')].forEach(e => { e.textContent = t + (estado.erro && !estado.carregando ? ' · falhou: ' + estado.erro : ''); });
   }
 
   async function carregar(forcar) {
-    if (!cfg.url || !cfg.token) { renderizarTudo(); return; }
-    const ativos = cfg.graficos.filter(g => g.ativo && g.intervalo);
+    if (!Sheets.pronto()) { renderizarTudo(); return; }
+    const ativos = graficos.filter(g => g.ativo && g.intervalo);
     if (!ativos.length || estado.carregando) return;
     const velho = Date.now() - estado.em > TTL || ativos.some(g => !estado.dados[g.id] || estado.dados[g.id].sig !== sig(g));
     if (!forcar && !velho) { rodape(); return; }
@@ -255,7 +267,7 @@
         mapa.push([g, false]);
         if (!hist(g) && g.anterior) { itens.push({ acao: 'ler', aba: g.aba, intervalo: g.anterior, retorno: ['exibidos', 'valores', 'formatos'] }); mapa.push([g, true]); }
       });
-      const d = await chamarScript('lote', { itens });
+      const d = await Sheets.lote(itens);
       if (!d.ok) throw new Error(d.erro || 'resposta inesperada');
       if (!d.resultados) throw new Error('o script está numa versão antiga: cole o novo apps-script.gs (v-generico-1) e publique uma nova versão');
       ativos.forEach(g => { estado.dados[g.id] = { sig: sig(g) }; });
@@ -268,21 +280,22 @@
   }
 
   function abrirPopup() { dlg.showModal(); requestAnimationFrame(() => { renderizarTudo(); carregar(); }); }
-  $('#btn-graficos').onclick = abrirPopup;
-  dlg.addEventListener('close', () => { const c = $('#gf-popup'); (c._cards || []).forEach(x => x.desligar()); c._cards = []; c.replaceChildren(); });
-  document.querySelectorAll('.gf-atualizar').forEach(b => b.onclick = () => carregar(true));
+  dlg.addEventListener('close', () => { (popup._cards || []).forEach(x => x.desligar()); popup._cards = []; popup.replaceChildren(); });
+  [raiz, dlg].forEach(e => e.querySelectorAll('.gf-atualizar').forEach(b => b.onclick = () => carregar(true)));
   setInterval(rodape, 30000);
 
   // chamado depois que uma sessão é gravada na planilha
   window.graficosRedesenhar = () => { if (visivel()) renderizarTudo(); };
   window.graficosAposEnvio = () => { estado.em = 0; LS.set(CACHE, { em: 0, dados: estado.dados }); if (visivel()) carregar(true); };
 
-  /* ---------- configuração (dentro de Configurações) ---------- */
+  /* ---------- configuração (⚙ no topo do quadro) ---------- */
+  const eng = q('.gf-engrenagem'), cfgBox = q('.gf-cfg');
+  eng.onclick = () => { cfgBox.hidden = !cfgBox.hidden; eng.setAttribute('aria-expanded', String(!cfgBox.hidden)); };
   const REGEX_INTERVALO = /^[A-Za-z]{1,3}\d+:[A-Za-z]{1,3}\d*$/;
-  const guardar = () => { LS.set('pomo-cfg', cfg); renderizarTudo(); if (visivel()) carregar(); };
+  const guardar = () => { persistir(); renderizarTudo(); if (visivel()) carregar(); };
   function montarConfig() {
-    const box = $('#gf-cfg'); box.replaceChildren();
-    cfg.graficos.forEach((g, i) => {
+    const box = q('.gf-cfg-lista'); box.replaceChildren();
+    graficos.forEach((g, i) => {
       const it = h('div', 'gf-cfg-item'), l1 = h('div', 'gf-cfg-l1'), l2 = h('div', 'gf-cfg-l2');
       const at = h('input'); at.type = 'checkbox'; at.checked = g.ativo; at.title = 'Mostrar este gráfico'; at.setAttribute('aria-label', 'Mostrar ' + g.titulo);
       at.onchange = () => { g.ativo = at.checked; guardar(); };
@@ -290,11 +303,11 @@
       ti.onchange = () => { g.titulo = ti.value.trim() || 'Gráfico'; guardar(); };
       const sobe = h('button', null, '↑'), desce = h('button', null, '↓');
       sobe.type = desce.type = 'button'; sobe.title = 'Mover para cima'; desce.title = 'Mover para baixo';
-      sobe.disabled = i === 0; desce.disabled = i === cfg.graficos.length - 1;
-      const mover = d => { const j = i + d; [cfg.graficos[i], cfg.graficos[j]] = [cfg.graficos[j], cfg.graficos[i]]; guardar(); montarConfig(); };
+      sobe.disabled = i === 0; desce.disabled = i === graficos.length - 1;
+      const mover = d => { const j = i + d; [graficos[i], graficos[j]] = [graficos[j], graficos[i]]; guardar(); montarConfig(); };
       sobe.onclick = () => mover(-1); desce.onclick = () => mover(1);
       const x = h('button', null, '✕'); x.type = 'button'; x.title = 'Remover este gráfico';
-      x.onclick = () => { if (!confirm('Remover o gráfico “' + g.titulo + '”?')) return; cfg.graficos.splice(i, 1); guardar(); montarConfig(); };
+      x.onclick = () => { if (!confirm('Remover o gráfico “' + g.titulo + '”?')) return; graficos.splice(i, 1); guardar(); montarConfig(); };
       l1.append(at, ti, sobe, desce, x);
       const tp = h('select'); tp.setAttribute('aria-label', 'Tipo');
       tp.append(new Option('Barras', 'barras'), new Option('Linhas', 'linhas'), new Option('Histograma', 'histograma')); tp.value = g.tipo;
@@ -325,20 +338,24 @@
       box.append(it);
     });
   }
-  $('#gf-add').onclick = () => {
-    cfg.graficos.push({ id: 'g' + Date.now().toString(36), titulo: 'Novo gráfico', tipo: 'barras', aba: 'Banco', intervalo: 'I3:K', ativo: true });
-    LS.set('pomo-cfg', cfg); montarConfig();
+  q('.gf-add').onclick = () => {
+    graficos.push({ id: 'g' + Date.now().toString(36), titulo: 'Novo gráfico', tipo: 'barras', aba: 'Banco', intervalo: 'I3:K', ativo: true });
+    persistir(); montarConfig();
   };
-  $('#gf-restaurar').onclick = () => {
+  q('.gf-restaurar').onclick = () => {
     if (!confirm('Voltar à lista padrão de gráficos (I3:K, M3:O, Q3:S14 e Q18:S25)?')) return;
-    cfg.graficos = JSON.parse(JSON.stringify(GRAF_PADRAO)); guardar(); montarConfig();
+    graficos.splice(0, graficos.length, ...JSON.parse(JSON.stringify(GRAF_PADRAO))); guardar(); montarConfig();
   };
-  montarConfig();
 
-  window.addEventListener('hashchange', () => { if (visivel()) { renderizarTudo(); carregar(); } });
-  renderizarTudo(); carregar();
-  // "no nível": a seção fica nítida quando o topo dela passa de ~55% da altura da tela
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver(([en]) => det.classList.toggle('em-foco', en.isIntersecting), { rootMargin: '0px 0px -45% 0px' }).observe(det);
-  }
-})();
+  return {
+    raiz,
+    iniciar() {
+      const bt = $('#btn-graficos'); if (bt) { bt.hidden = false; bt.onclick = abrirPopup; }     // botão "Gráficos" do topo = janela ampliada
+      montarConfig(); renderizarTudo(); carregar();
+      // "no nível": o quadro fica nítido quando o topo dele passa de ~55% da altura da tela
+      if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => raiz.classList.toggle('em-foco', en.isIntersecting), { rootMargin: '0px 0px -45% 0px' }).observe(raiz);
+      else raiz.classList.add('em-foco');
+    },
+    aparecer() { renderizarTudo(); carregar(); }
+  };
+});
