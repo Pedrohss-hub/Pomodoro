@@ -73,7 +73,7 @@ const Tema = (() => {
     r.setProperty('--pad', m.pad); r.setProperty('--raio', m.raio); r.setProperty('--largura', m.largura + 'rem');
     r.colorScheme = (hex(t.cores.bg) && luminancia(t.cores.bg) < .35) ? 'dark' : 'light';
     carregarFonte(t.fonte.nome);
-    if (redesenhar) { try { if (window.graficosRedesenhar) window.graficosRedesenhar(); } catch {} }
+    if (redesenhar) document.dispatchEvent(new Event('tema-mudou'));      // (tema.js carrega primeiro: não usa o Util)
   }
   const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(atual)); } catch {} };
   aplicar();

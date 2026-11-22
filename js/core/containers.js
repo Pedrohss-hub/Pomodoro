@@ -3,7 +3,8 @@
      { id: 'agenda', tipo: 'agenda', titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', ... }
    Cada TIPO de container é um arquivo em js/containers/ que se registra aqui:
      Containers.registrar('agenda', ctx => { ...monta o HTML...; return { raiz, aparecer }; });
-   O que o tipo recebe (ctx):  id, def() (a configuração atual), ajustar({campo: valor}) (guarda mudanças), visivel() (a página dele está aberta?)
+   O que o tipo recebe (ctx):  id, def() (a configuração atual), ajustar({campo: valor}) (guarda mudanças), visivel() (a página dele está aberta?),
+                               publicar('nome', () => dados) (oferece dados a outros containers) e consultar('nome') (junta os dados oferecidos por todos)
    O que o tipo devolve:       raiz (o elemento a colocar na página), aparecer() opcional (chamado quando a página dele é aberta),
                                iniciar() opcional (chamado logo depois de colocado na página)
    Carregue depois de pomodoro.js (usa LS) e antes dos arquivos de js/containers/. */
@@ -13,6 +14,7 @@ const Containers = (() => {
   const bases = {};                       // id -> configuração padrão (vem do código, em js/paginas.js)
   const ajustes = LS.get(CHAVE, {});      // id -> só os campos que você mudou na tela (fica neste navegador)
   const vivos = [];                       // containers já colocados na página
+  const fontes = {};                      // nome -> Map(id do container -> função que devolve uma lista); ver publicar/consultar
 
   const registrar = (tipo, fabrica) => { tipos[tipo] = fabrica; };
   const def = id => Object.assign({}, bases[id], ajustes[id]);
@@ -33,7 +35,9 @@ const Containers = (() => {
     if (!fabrica) { console.error('tipo de container desconhecido: "' + base.tipo + '" (id ' + base.id + ')'); return null; }
     const visivel = opcoes.visivel || (() => true);
     try {                                                          // um container quebrado não derruba os outros
-      const inst = fabrica({ id: base.id, def: () => def(base.id), ajustar: campos => ajustar(base.id, campos), visivel });
+      const inst = fabrica({ id: base.id, def: () => def(base.id), ajustar: campos => ajustar(base.id, campos), visivel,
+        publicar: (nome, fn) => { (fontes[nome] = fontes[nome] || new Map()).set(base.id, fn); },
+        consultar: nome => [...(fontes[nome] ? fontes[nome].values() : [])].flatMap(f => f()) });
       destino.insertBefore(inst.raiz, opcoes.antes || null);
       vivos.push({ inst, visivel });
       if (inst.iniciar) inst.iniciar();

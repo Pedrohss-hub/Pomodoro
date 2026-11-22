@@ -40,17 +40,6 @@
     return { ok: true, categorias: [...new Set(d.exibidos.flat().map(v => String(v).trim()).filter(Boolean))], aba: d.aba, intervalo: d.intervalo };
   }
 
-  // Hora ou duração vira horas (número); número puro segue a opção "formato dos tempos"
-  function emHoras(valor, formato, exibido) {
-    if (exibido === '' || exibido == null) return null;
-    const t = String(exibido).trim(), f = formato || '';
-    const m = t.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?/);                 // 12:30 ou 12:30:00 (hora, duração ou texto)
-    if (m && (/[hH\[]/.test(f) || typeof valor !== 'number')) return Number(m[1]) + Number(m[2]) / 60 + (Number(m[3]) || 0) / 3600;
-    const u = /^\[(h+|m+|s+)\]/i.exec(f);                                  // duração só em horas, minutos ou segundos: [h], [m], [s]
-    if (u && /^-?\d+([.,]\d+)?$/.test(t)) { const n = Number(t.replace(',', '.')), k = u[1][0].toLowerCase(); return k === 'h' ? n : k === 'm' ? n / 60 : n / 3600; }
-    if (typeof valor === 'number') return cfg.planilha.formatoTempo === 'min' ? valor / 60 : valor * 24;
-    return null;
-  }
 
   // (fim das funções do site para o script genérico)
 
@@ -260,7 +249,7 @@
     limparAntigas();
     LS.set('pomo-log', log);
     renderLog();
-    if (e.status === 'ok' && window.graficosAposEnvio) { try { window.graficosAposEnvio(); } catch {} }
+    if (e.status === 'ok') Util.avisar('sessao-enviada');
   }
 
   // Envia um de cada vez, na ordem: evita duas gravações disputando a mesma linha da planilha

@@ -30,10 +30,21 @@ Containers.registrar('graficos', ctx => {
   }
   const diaSem = l => { const d = dataLinha(l); return d ? DIAS[d.getDay()] : null; };
   // itens da categoria "Imp" da agenda que caem num dia (nome + hora)
-  const impDoDia = d => (window.Agenda ? [...window.Agenda.fontes.values()] : []).flatMap(f => f())
+  const impDoDia = d => ctx.consultar('agenda-itens')
     .filter(x => /^imp/i.test(x.cat) && x.t[0] === d.getFullYear() && x.t[1] === d.getMonth() && x.t[2] === d.getDate())
     .map(x => x.desc + (x.hora ? ' · ' + x.hora : ''));
-  const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  const h = Util.h;
+  // Hora ou duração vira horas (número); número puro segue a opção "formato dos tempos" das Configurações da planilha (cfg.planilha)
+  function emHoras(valor, formato, exibido) {
+    if (exibido === '' || exibido == null) return null;
+    const t = String(exibido).trim(), f = formato || '';
+    const m = t.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?/);                 // 12:30 ou 12:30:00 (hora, duração ou texto)
+    if (m && (/[hH\[]/.test(f) || typeof valor !== 'number')) return Number(m[1]) + Number(m[2]) / 60 + (Number(m[3]) || 0) / 3600;
+    const u = /^\[(h+|m+|s+)\]/i.exec(f);                                  // duração só em horas, minutos ou segundos: [h], [m], [s]
+    if (u && /^-?\d+([.,]\d+)?$/.test(t)) { const n = Number(t.replace(',', '.')), k = u[1][0].toLowerCase(); return k === 'h' ? n : k === 'm' ? n / 60 : n / 3600; }
+    if (typeof valor === 'number') return cfg.planilha.formatoTempo === 'min' ? valor / 60 : valor * 24;
+    return null;
+  }
   const sv = (tag, attrs, txt) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; };
 
   const horaTxt = x => { const m = Math.round(x * 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
@@ -223,16 +234,12 @@ Containers.registrar('graficos', ctx => {
       <div class="sh-btns"><button type="button" class="gf-add">+ Adicionar gráfico</button><button type="button" class="gf-restaurar">Restaurar padrão</button></div>
     </div>
     <div class="gf-grade"></div>`;
-  const dlg = h('dialog', 'gf-dlg');
-  dlg.innerHTML = `
+  const dlg = Util.dialogo('gf-dlg', `
     <div class="dlg-corpo">
       <div class="dlg-topo"><h2>Gráficos de estudo</h2><button type="button" class="fechar">Fechar</button></div>
       <div class="gf-barra"><button type="button" class="mini gf-atualizar" title="Atualizar gráficos" aria-label="Atualizar gráficos">↻</button><span class="gf-status" role="status"></span></div>
       <div class="gf-grade gf-popup"></div>
-    </div>`;
-  document.body.append(dlg);
-  dlg.addEventListener('click', ev => { if (ev.target === dlg) dlg.close(); });
-  dlg.querySelector('.fechar').onclick = () => dlg.close();
+    </div>`);
   const q = x => raiz.querySelector(x), grade = q('.gf-grade'), popup = dlg.querySelector('.gf-popup');
   q('.gf-titulo').textContent = ctx.def().titulo || 'Gráficos de estudo';
   const alvos = () => [ctx.visivel() ? grade : null, dlg.open ? popup : null].filter(Boolean);
@@ -249,8 +256,8 @@ Containers.registrar('graficos', ctx => {
   function renderizarTudo() { alvos().forEach(renderizar); rodape(); }
 
   function rodape() {
-    const t = estado.carregando ? 'Atualizando…' : estado.em ? 'Atualizado há ' + (Date.now() - estado.em < 60000 ? 'instantes' : Math.round((Date.now() - estado.em) / 60000) + ' min') : 'Ainda não atualizado';
-    [...raiz.querySelectorAll('.gf-status'), ...dlg.querySelectorAll('.gf-status')].forEach(e => { e.textContent = t + (estado.erro && !estado.carregando ? ' · falhou: ' + estado.erro : ''); });
+    const t = Util.textoAtualizado(estado);
+    [...raiz.querySelectorAll('.gf-status'), ...dlg.querySelectorAll('.gf-status')].forEach(e => { e.textContent = t; });
   }
 
   async function carregar(forcar) {
@@ -261,7 +268,7 @@ Containers.registrar('graficos', ctx => {
     if (!forcar && !velho) { rodape(); return; }
     estado.carregando = true; estado.erro = ''; renderizarTudo();
     try {
-      if (!navigator.onLine) throw new Error('sem internet');
+      Util.exigirInternet();
       const itens = [], mapa = [], hist = g => g.tipo === 'histograma';
       ativos.forEach(g => {
         itens.push(hist(g) ? { acao: 'ler', aba: g.aba, intervalo: g.intervalo, retorno: ['exibidos'], limite: 1000 } : { acao: 'ler', aba: g.aba, intervalo: g.intervalo, retorno: ['exibidos', 'valores', 'formatos'] });
@@ -285,14 +292,13 @@ Containers.registrar('graficos', ctx => {
   [raiz, dlg].forEach(e => e.querySelectorAll('.gf-atualizar').forEach(b => b.onclick = () => carregar(true)));
   setInterval(rodape, 30000);
 
-  // chamado depois que uma sessão é gravada na planilha
-  window.graficosRedesenhar = () => { if (visivel()) renderizarTudo(); };
-  window.graficosAposEnvio = () => { estado.em = 0; LS.set(CACHE, { em: 0, dados: estado.dados }); if (visivel()) carregar(true); };
+  // avisos de fora (ver Util.avisar): o tema mudou / uma sessão foi gravada na planilha
+  document.addEventListener('tema-mudou', () => { if (visivel()) renderizarTudo(); });
+  document.addEventListener('sessao-enviada', () => { estado.em = 0; LS.set(CACHE, { em: 0, dados: estado.dados }); if (visivel()) carregar(true); });
 
   /* ---------- configuração (⚙ no topo do quadro) ---------- */
-  const eng = q('.gf-engrenagem'), cfgBox = q('.gf-cfg');
-  eng.onclick = () => { cfgBox.hidden = !cfgBox.hidden; eng.setAttribute('aria-expanded', String(!cfgBox.hidden)); };
-  const REGEX_INTERVALO = /^[A-Za-z]{1,3}\d+:[A-Za-z]{1,3}\d*$/;
+  Util.engrenagem(q('.gf-engrenagem'), q('.gf-cfg'));
+  const REGEX_INTERVALO = Util.REGEX_INTERVALO;
   const guardar = () => { persistir(); renderizarTudo(); if (visivel()) carregar(); };
   function montarConfig() {
     const box = q('.gf-cfg-lista'); box.replaceChildren();

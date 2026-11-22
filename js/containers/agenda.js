@@ -4,13 +4,13 @@
 Containers.registrar('agenda', ctx => {
   const PADRAO = { titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false };
   const a = () => Object.assign({}, PADRAO, ctx.def());              // configuração de agora (padrão + o que você mudou)
-  const CACHE = 'ct-cache-' + ctx.id, TTL = 10 * 60 * 1000, REGEX = /^[A-Za-z]{1,3}\d+:[A-Za-z]{1,3}\d*$/;
+  const CACHE = 'ct-cache-' + ctx.id, TTL = 10 * 60 * 1000, REGEX = Util.REGEX_INTERVALO;
   const salvo = LS.get(CACHE, null) || {};
   const est = { itens: salvo.itens || [], meta: salvo.meta || null, sig: salvo.sig || '', em: salvo.em || 0, carregando: false, erro: '' };
   const sig = () => a().aba + '!' + a().intervalo;
   const salvarCache = () => LS.set(CACHE, { itens: est.itens, meta: est.meta, sig: est.sig, em: est.em });
   const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  const h = Util.h;
   const p2 = n => String(n).padStart(2, '0');
 
   /* ---------- HTML do container (só texto fixo: nada digitado por você entra aqui) ---------- */
@@ -38,13 +38,11 @@ Containers.registrar('agenda', ctx => {
     <div class="ag-lista"></div>`;
   const q = s => raiz.querySelector(s);
   // outros containers (ex.: o gráfico semanal) leem os itens da agenda por aqui
-  window.Agenda = window.Agenda || { fontes: new Map() };
-  window.Agenda.fontes.set(ctx.id, () => est.itens);
-  const avisarMudou = () => document.dispatchEvent(new Event('agenda-atualizada'));
+  ctx.publicar('agenda-itens', () => est.itens);
+  const avisarMudou = () => Util.avisar('agenda-atualizada');
   const lista = q('.ag-lista');
 
-  const dlg = h('dialog', 'dlg-ag');
-  dlg.innerHTML = `
+  const dlg = Util.dialogo('dlg-ag', `
     <div class="dlg-corpo">
       <div class="dlg-topo"><h2 class="ag-d-titulo">Item da agenda</h2><button type="button" class="fechar">Fechar</button></div>
       <form class="pl-form ag-form" autocomplete="off">
@@ -64,11 +62,8 @@ Containers.registrar('agenda', ctx => {
           <button type="submit" class="pl-btn pri ag-salvar">Salvar</button>
         </div>
       </form>
-    </div>`;
-  document.body.append(dlg);
+    </div>`);
   const qd = s => dlg.querySelector(s);
-  dlg.addEventListener('click', ev => { if (ev.target === dlg) dlg.close(); });
-  qd('.fechar').onclick = () => dlg.close();
 
   /* ---------- ler: linhas da planilha -> itens [{desc, hora, cat, feita, t:[ano, mês, dia]}] ordenados por data e hora ---------- */
   // As colunas são achadas pelo cabeçalho (Status, Descrição, Horas, Categoria, Data) se ele estiver no intervalo;
@@ -135,7 +130,7 @@ Containers.registrar('agenda', ctx => {
   }
 
   function rodape() {
-    q('.ag-status').textContent = est.carregando ? 'Atualizando…' : est.em ? 'Atualizado há ' + (Date.now() - est.em < 60000 ? 'instantes' : Math.round((Date.now() - est.em) / 60000) + ' min') + (est.erro ? ' · falhou: ' + est.erro : '') : 'Ainda não atualizado';
+    q('.ag-status').textContent = Util.textoAtualizado(est);
   }
 
   async function carregar(forcar) {
@@ -144,7 +139,7 @@ Containers.registrar('agenda', ctx => {
     if (!forcar && est.sig === sig() && Date.now() - est.em < TTL) { rodape(); return; }
     est.carregando = true; est.erro = ''; render(); rodape();
     try {
-      if (!navigator.onLine) throw new Error('sem internet');
+      Util.exigirInternet();
       const d = await Sheets.ler(a().aba, a().intervalo, { retorno: ['exibidos', 'valores'], limite: 3000 });
       if (!d.ok) throw new Error(d.erro || 'resposta inesperada');
       est.itens = converter(d); est.sig = sig(); est.em = Date.now();
@@ -236,8 +231,7 @@ Containers.registrar('agenda', ctx => {
   };
 
   /* ---------- configuração (⚙ no topo do container) ---------- */
-  const eng = q('.ag-engrenagem'), cfgBox = q('.ag-cfg');
-  eng.onclick = () => { cfgBox.hidden = !cfgBox.hidden; eng.setAttribute('aria-expanded', String(!cfgBox.hidden)); };
+  Util.engrenagem(q('.ag-engrenagem'), q('.ag-cfg'));
   function mostrarCfg() {
     const c = a();
     q('.ag-aba').value = c.aba; q('.ag-int').value = c.intervalo; q('.ag-verm').value = c.vermelho; q('.ag-amar').value = c.amarelo; q('.ag-conc').checked = c.concluidas;
