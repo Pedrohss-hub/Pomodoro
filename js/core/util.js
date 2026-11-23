@@ -3,6 +3,7 @@
 
      Util.h('div', 'classe', 'texto')       cria um elemento (texto entra como texto, nunca como HTML)
      Util.REGEX_INTERVALO                    confere intervalos como A3:G, I3:K14
+     Util.colunaNumero('B') / colunaLetra(2) converte entre letra e número de coluna (A=1, B=2, ..., AA=27)
      Util.textoAtualizado(estado)            "Atualizando…" / "Atualizado há 3 min · falhou: ..." / "Ainda não atualizado"
                                              (estado = { carregando, em, erro }, onde "em" é Date.now() da última leitura)
      Util.exigirInternet()                   lança "sem internet" quando o aparelho está offline
@@ -19,6 +20,9 @@ const Util = (() => {
   const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 
   const REGEX_INTERVALO = /^[A-Za-z]{1,3}\d+:[A-Za-z]{1,3}\d*$/;
+
+  const colunaNumero = letras => [...String(letras).toUpperCase()].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
+  const colunaLetra = n => { let s = ''; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };
 
   function textoAtualizado(e) {
     if (e.carregando) return 'Atualizando…';
@@ -43,5 +47,5 @@ const Util = (() => {
 
   const avisar = nome => document.dispatchEvent(new Event(nome));
 
-  return { h, REGEX_INTERVALO, textoAtualizado, exigirInternet, engrenagem, dialogo, avisar };
+  return { h, REGEX_INTERVALO, colunaNumero, colunaLetra, textoAtualizado, exigirInternet, engrenagem, dialogo, avisar };
 })();

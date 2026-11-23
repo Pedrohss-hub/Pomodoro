@@ -9,18 +9,27 @@
                                iniciar() opcional (chamado logo depois de colocado na página),
                                acoes opcional: [{ rotulo, dica, fazer }] = botões para a barra da página (o Roteador coloca)
    Quem monta os containers de cada página e avisa quando a página muda é o Roteador (js/core/roteador.js).
-   Carregue depois de pomodoro.js (usa LS) e antes dos arquivos de js/containers/. */
+   As mudanças que você faz nos containers (⚙) são guardadas pelo Armazém (js/core/armazem.js): neste navegador e, se ligado, no Sheets.
+   Carregue depois de pomodoro.js (usa LS) e de armazem.js, e antes dos arquivos de js/containers/. */
 const Containers = (() => {
-  const CHAVE = 'ct-defs-v1';
+  const CHAVE = 'containers';             // nome desta configuração no Armazém (navegador + Sheets)
   const tipos = {};                       // tipo -> fábrica
   const bases = {};                       // id -> configuração padrão (vem do código, em js/paginas.js)
-  const ajustes = LS.get(CHAVE, {});      // id -> só os campos que você mudou na tela (fica neste navegador)
+  Armazem.adotar(CHAVE, LS.get('ct-defs-v1', undefined));   // aproveita o que a versão antiga guardava só neste navegador
+  const ajustes = Armazem.obter(CHAVE, {});                  // id -> só os campos que você mudou na tela (navegador + Sheets, ver armazem.js)
+  const salvar = () => Armazem.guardar(CHAVE, ajustes);
+  // chegou uma configuração mais nova de outro aparelho: atualiza aqui dentro e avisa a tela (ela oferece "Recarregar")
+  Armazem.usar(CHAVE, () => {
+    const novo = Armazem.obter(CHAVE, {});
+    Object.keys(ajustes).forEach(k => { delete ajustes[k]; }); Object.assign(ajustes, novo);
+    Util.avisar('configuracao-recebida');
+  });
   const vivos = [];                       // containers já colocados na página
   const fontes = {};                      // nome -> Map(id do container -> função que devolve uma lista); ver publicar/consultar
 
   const registrar = (tipo, fabrica) => { tipos[tipo] = fabrica; };
   const def = id => Object.assign({}, bases[id], ajustes[id]);
-  const ajustar = (id, campos) => { ajustes[id] = Object.assign({}, ajustes[id], campos); LS.set(CHAVE, ajustes); };
+  const ajustar = (id, campos) => { ajustes[id] = Object.assign({}, ajustes[id], campos); salvar(); };
 
   // base: a definição. destino: elemento onde entra. opcoes: { antes: elemento, visivel: () => bool, herdar: objeto antigo }
   //   herdar: configuração antiga (de antes do container existir); só vale na 1ª vez e só copia o que difere do padrão.
@@ -30,7 +39,7 @@ const Containers = (() => {
     if (!ajustes[base.id] && opcoes.herdar) {
       const dif = {};
       Object.keys(base).forEach(k => { if (k in opcoes.herdar && opcoes.herdar[k] !== base[k]) dif[k] = opcoes.herdar[k]; });
-      ajustes[base.id] = dif; LS.set(CHAVE, ajustes);
+      ajustes[base.id] = dif; salvar();
     }
     if (def(base.id).ligado === false) return null;               // "ligado: false" = container desligado
     const fabrica = tipos[base.tipo];
@@ -53,7 +62,7 @@ const Containers = (() => {
   });
 
   const todas = () => Object.keys(bases).map(id => def(id));     // definições de agora (padrão + o que você mudou), prontas para colar em js/paginas.js
-  const limparAjustes = () => { Object.keys(bases).forEach(id => { ajustes[id] = {}; }); LS.set(CHAVE, ajustes); };   // {} (e não apagar) para não herdar de novo a configuração antiga
+  const limparAjustes = () => { Object.keys(bases).forEach(id => { ajustes[id] = {}; }); salvar(); };   // {} (e não apagar) para não herdar de novo a configuração antiga
 
   return { registrar, montar, def, ajustar, paginaMudou, todas, limparAjustes };
 })();

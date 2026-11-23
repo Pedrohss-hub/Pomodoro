@@ -247,8 +247,19 @@
         <p class="dica" id="sh-msg" role="status"></p>
       </div></details>
       <details class="sh" id="ct-det">
-        <summary>Containers: levar a configuração para outros aparelhos</summary><div class="cx-corpo">
-        <p class="dica" style="margin-top:.6rem">Agenda e gráficos guardam a configuração só neste navegador. Para o celular ficar igual: copie a configuração, cole em <b>js/paginas.js</b>, envie ao GitHub e, no celular, use "Usar a do projeto".</p>
+        <summary>Configurações do site: sincronizar entre aparelhos (Sheets)</summary><div class="cx-corpo">
+        <p class="dica" style="margin-top:.6rem">Agenda e gráficos guardam a configuração neste navegador. Ligando abaixo, ela também fica numa aba da <b>sua</b> planilha e todos os aparelhos ficam iguais. A URL e o token continuam só em cada aparelho.</p>
+        <label class="teste" style="margin:.6rem 0"><input type="checkbox" id="arm-ligado"> Guardar as configurações também no Sheets</label>
+        <div class="sh-2">
+          <div><label class="campo" for="arm-aba">Aba</label><input type="text" id="arm-aba" list="sh-abas" autocomplete="off"></div>
+          <div><label class="campo" for="arm-celula">Célula inicial (ex.: A1)</label><input type="text" id="arm-celula" autocomplete="off"></div>
+        </div>
+        <div class="sh-btns">
+          <button type="button" id="arm-preparar">Testar e criar a aba</button>
+          <button type="button" id="arm-sincronizar">Sincronizar agora</button>
+        </div>
+        <p class="dica" id="arm-msg" role="status"></p>
+        <p class="dica">Sem o Sheets, dá para levar a configuração à mão: copie, cole em <b>js/paginas.js</b>, envie ao GitHub e, no outro aparelho, use "Usar a do projeto".</p>
         <div class="sh-btns">
           <button type="button" id="ct-copiar">Copiar a configuração daqui</button>
           <button type="button" id="ct-limpar">Usar a do projeto (apagar mudanças deste aparelho)</button>
@@ -336,16 +347,18 @@
   </div>
 </dialog>
 
-<script src="js/core/sheets.js?v=1"></script>
-<script src="js/core/util.js?v=1"></script>
+<script src="js/core/sheets.js?v=2"></script>
+<script src="js/core/util.js?v=2"></script>
 <script src="js/pomodoro.js?v=4"></script>
 <script src="js/planilha.js?v=1"></script>
 <script src="js/grade.js?v=2"></script>
-<script src="js/core/containers.js?v=4"></script>
+<script src="js/core/armazem.js?v=1"></script>
+<script src="js/core/containers.js?v=5"></script>
 <script src="js/core/roteador.js?v=1"></script>
 <script src="js/containers/agenda.js?v=3"></script>
 <script src="js/containers/graficos.js?v=4"></script>
 <script src="js/paginas.js?v=4"></script>
+<script src="js/sincronia.js?v=1"></script>
 <script src="js/aparencia.js?v=1"></script>
 <script>
 if ('serviceWorker' in navigator) {

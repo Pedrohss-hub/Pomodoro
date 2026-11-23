@@ -7,6 +7,7 @@
      const d = await Sheets.ler('Agenda', 'A3:G');   // lê um intervalo
      await Sheets.anexar('Banco', { A: 'texto' });   // grava na primeira linha livre
      await Sheets.lote([{ acao: 'ler', ... }, ...]); // várias ações numa chamada só
+     await Sheets.criarAba('App');                   // cria a aba se ela ainda não existir
 
    Quando algo falha, o erro lançado tem a propriedade "tipo":
      'config'   -> faltam URL ou token
@@ -47,6 +48,7 @@ const Sheets = (() => {
   const escrever = (aba, intervalo, valores) => chamar('escrever', { aba, intervalo, valores });
   const limpar = (aba, intervalo) => chamar('limpar', { aba, intervalo });
   const abas = () => chamar('abas');
+  const criarAba = aba => chamar('criarAba', { aba });      // cria a aba se não existir
 
   // O script está no ar? (true/false; nunca lança erro)
   async function ping() {
@@ -59,5 +61,5 @@ const Sheets = (() => {
     }
   }
 
-  return { usar, pronto, chamar, ler, lote, anexar, escrever, limpar, abas, ping };
+  return { usar, pronto, chamar, ler, lote, anexar, escrever, limpar, abas, criarAba, ping };
 })();
