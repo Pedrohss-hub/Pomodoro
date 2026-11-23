@@ -13,6 +13,7 @@ Containers.registrar('graficos', ctx => {
   // lista de gráficos: a do código (padrão) ou a que você montou (fica neste navegador, em ct-defs-v1)
   const graficos = JSON.parse(JSON.stringify(ctx.def().graficos || GRAF_PADRAO));
   const persistir = () => ctx.ajustar({ graficos });
+  let editandoId = null;                                  // gráfico aberto no painel de configuração
 
   const corCss = (v, padrao) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || padrao;
   const IMP = '#C9A227';   // dourado discreto para os dias importantes
@@ -135,7 +136,11 @@ Containers.registrar('graficos', ctx => {
   function cartao(g) {
     const card = h('div', 'gf-card');
     const topo = h('div', 'gf-topo'), sub = h('span', 'gf-sub');
-    topo.append(h('h3', null, g.titulo || 'Gráfico'), sub);
+    card.dataset.id = g.id; if (g.id === editandoId) card.classList.add('editando');
+    const alca = h('span', 'gf-alca', '⋮⋮'); alca.title = 'Arraste para mudar a ordem';
+    const tit = h('h3', null, g.titulo || 'Gráfico'); tit.title = 'Clique para editar'; tit.onclick = () => editar(g);
+    const ed = h('button', 'gf-editar', '✎'); ed.type = 'button'; ed.title = 'Editar este gráfico'; ed.setAttribute('aria-label', 'Editar o gráfico ' + (g.titulo || '')); ed.onclick = () => editar(g);
+    topo.append(alca, tit, ed, sub);
     const leg = h('div', 'gf-leg'), plot = h('div', 'gf-plot'), tip = h('div', 'gf-tip'), msg = h('p', 'gf-msg');
     tip.hidden = true; plot.append(tip);
     card.append(topo, leg, plot, msg);
@@ -196,7 +201,7 @@ Containers.registrar('graficos', ctx => {
       if (marcas && marcas.some(Boolean)) { const lg = h('span', 'gf-leg-imp'); lg.append(h('b'), document.createTextNode('Importante')); leg.append(lg); }
       pintar();
     }
-    const ro = new ResizeObserver(() => { if (plot.clientWidth !== larg) pintar(); });
+    const ro = new ResizeObserver(() => requestAnimationFrame(() => { if (plot.clientWidth !== larg) pintar(); }));   // no próximo quadro: evita o aviso "ResizeObserver loop"
     ro.observe(plot);
     card.atualizar = atualizar; card.desligar = () => ro.disconnect();
     return card;
@@ -224,15 +229,11 @@ Containers.registrar('graficos', ctx => {
   raiz.innerHTML = `
     <div class="box-topo"><h2 class="gf-titulo"></h2>
       <div class="acoes-topo">
+        <button type="button" class="mini gf-nova" title="Adicionar um gráfico">+ Gráfico</button>
         <button type="button" class="mini gf-atualizar" title="Atualizar gráficos" aria-label="Atualizar gráficos">↻</button>
         <button type="button" class="mini gf-engrenagem" title="Escolher os gráficos" aria-label="Configurar os gráficos" aria-expanded="false">⚙</button></div>
     </div>
     <p class="status-linha gf-status" role="status"></p>
-    <div class="gf-cfg" hidden>
-      <p class="dica">Cada gráfico lê um intervalo de 3 colunas: rótulo (data), tempo líquido e perdido. Pode ter ou não o cabeçalho; linhas vazias no fim são ignoradas. Intervalos abertos como I3:K pegam tudo até a última linha.</p>
-      <div class="gf-cfg-lista"></div>
-      <div class="sh-btns"><button type="button" class="gf-add">+ Adicionar gráfico</button><button type="button" class="gf-restaurar">Restaurar padrão</button></div>
-    </div>
     <div class="gf-grade"></div>`;
   const dlg = Util.dialogo('gf-dlg', `
     <div class="dlg-corpo">
@@ -249,7 +250,7 @@ Containers.registrar('graficos', ctx => {
     (c._cards || []).forEach(x => x.desligar());
     c._cards = graficos.filter(g => g.ativo).map(cartao);
     c.replaceChildren(...c._cards);
-    if (!c._cards.length) { const p = h('p', 'gf-msg', 'Nenhum gráfico ativo. Ative ou adicione no ⚙ deste quadro.'); c.append(p); }
+    if (!c._cards.length) { const p = h('p', 'gf-msg', 'Nenhum gráfico ativo. Use "+ Gráfico".'); c.append(p); }
     c._cards.forEach(x => x.atualizar());
   }
   document.addEventListener('agenda-atualizada', () => renderizarTudo());   // a agenda chegou ou mudou: remarca os dias
@@ -296,69 +297,90 @@ Containers.registrar('graficos', ctx => {
   document.addEventListener('tema-mudou', () => { if (visivel()) renderizarTudo(); });
   document.addEventListener('sessao-enviada', () => { estado.em = 0; LS.set(CACHE, { em: 0, dados: estado.dados }); if (visivel()) carregar(true); });
 
-  /* ---------- configuração (⚙ no topo do quadro) ---------- */
-  Util.engrenagem(q('.gf-engrenagem'), q('.gf-cfg'));
-  const REGEX_INTERVALO = Util.REGEX_INTERVALO;
+  /* ---------- editar, adicionar e ordenar: painel padrão ao lado (vale na hora) e arrastar pela alça ---------- */
   const guardar = () => { persistir(); renderizarTudo(); if (visivel()) carregar(); };
-  function montarConfig() {
-    const box = q('.gf-cfg-lista'); box.replaceChildren();
-    graficos.forEach((g, i) => {
-      const it = h('div', 'gf-cfg-item'), l1 = h('div', 'gf-cfg-l1'), l2 = h('div', 'gf-cfg-l2');
-      const at = h('input'); at.type = 'checkbox'; at.checked = g.ativo; at.title = 'Mostrar este gráfico'; at.setAttribute('aria-label', 'Mostrar ' + g.titulo);
-      at.onchange = () => { g.ativo = at.checked; guardar(); };
-      const ti = h('input'); ti.type = 'text'; ti.value = g.titulo; ti.setAttribute('aria-label', 'Título'); ti.placeholder = 'Título';
-      ti.onchange = () => { g.titulo = ti.value.trim() || 'Gráfico'; guardar(); };
-      const sobe = h('button', null, '↑'), desce = h('button', null, '↓');
-      sobe.type = desce.type = 'button'; sobe.title = 'Mover para cima'; desce.title = 'Mover para baixo';
-      sobe.disabled = i === 0; desce.disabled = i === graficos.length - 1;
-      const mover = d => { const j = i + d; [graficos[i], graficos[j]] = [graficos[j], graficos[i]]; guardar(); montarConfig(); };
-      sobe.onclick = () => mover(-1); desce.onclick = () => mover(1);
-      const x = h('button', null, '✕'); x.type = 'button'; x.title = 'Remover este gráfico';
-      x.onclick = () => { if (!confirm('Remover o gráfico “' + g.titulo + '”?')) return; graficos.splice(i, 1); guardar(); montarConfig(); };
-      l1.append(at, ti, sobe, desce, x);
-      const tp = h('select'); tp.setAttribute('aria-label', 'Tipo');
-      tp.append(new Option('Barras', 'barras'), new Option('Linhas', 'linhas'), new Option('Histograma', 'histograma')); tp.value = g.tipo;
-      tp.onchange = () => { g.tipo = tp.value; if (g.tipo === 'histograma') { g.aba = cfg.planilha.aba; g.intervalo = intervaloInicio(); g.passo = g.passo || 60; } guardar(); montarConfig(); };
-      const ab = h('input'); ab.type = 'text'; ab.value = g.aba; ab.setAttribute('list', 'sh-abas'); ab.setAttribute('aria-label', 'Aba'); ab.placeholder = 'Aba';
-      ab.onchange = () => { g.aba = ab.value.trim() || 'Banco'; guardar(); };
-      const iv = h('input'); iv.type = 'text'; iv.value = g.intervalo; iv.setAttribute('aria-label', 'Células'); iv.placeholder = 'I3:K';
-      iv.onchange = () => {
-        const v = iv.value.trim().toUpperCase();
-        iv.classList.toggle('erro', !REGEX_INTERVALO.test(v));
-        if (REGEX_INTERVALO.test(v)) { g.intervalo = v; guardar(); }
-      };
-      l2.append(tp, ab, iv);
-      it.append(l1, l2);
-      if (g.tipo !== 'histograma') {   // período anterior (opcional), desenhado apagado atrás
-        const an = h('input'); an.type = 'text'; an.value = g.anterior || ''; an.placeholder = 'Intervalo anterior (opcional), ex.: Q3:S14'; an.setAttribute('aria-label', 'Intervalo anterior');
-        an.onchange = () => { const v = an.value.trim().toUpperCase(); an.classList.toggle('erro', !!v && !REGEX_INTERVALO.test(v)); if (!v || REGEX_INTERVALO.test(v)) { g.anterior = v; guardar(); } };
-        it.append(an);
-        const dl = h('label', 'teste'), dc = h('input'); dc.type = 'checkbox'; dc.checked = !!g.diaSemana;
-        dc.onchange = () => { g.diaSemana = dc.checked; guardar(); };
-        dl.append(dc, document.createTextNode(' Mostrar o dia da semana (Seg, Ter…) no eixo, quando a primeira coluna for uma data'));
-        it.append(dl);
-        const il = h('label', 'teste'), ic = h('input'); ic.type = 'checkbox'; ic.checked = !!g.imp;
-        ic.onchange = () => { g.imp = ic.checked; guardar(); };
-        il.append(ic, document.createTextNode(' Marcar os dias com itens "Imp" da agenda (a primeira coluna deve ser uma data)'));
-        it.append(il);
-      }
-      box.append(it);
+  const marcarEditando = () => grade.querySelectorAll('.gf-card').forEach(c => c.classList.toggle('editando', c.dataset.id === editandoId));
+  const nTipo = v => v.tipo !== 'histograma';
+  const CAMPOS_G = [
+    { chave: 'titulo', rotulo: 'Título', tipo: 'texto' },
+    { chave: 'tipo', rotulo: 'Tipo', tipo: 'selecao', recarrega: true, opcoes: [['barras', 'Barras'], ['linhas', 'Linhas'], ['histograma', 'Histograma (horário de início)']] },
+    { chave: 'aba', rotulo: 'Aba da planilha', tipo: 'aba' },
+    { chave: 'intervalo', rotulo: 'Células', tipo: 'intervalo', dica: 'Rótulo (data), tempo líquido e perdido. Intervalos abertos como I3:K pegam até a última linha. No histograma: a coluna Início.' },
+    { chave: 'anterior', rotulo: 'Período anterior (opcional)', tipo: 'intervalo', opcional: true, mostrarSe: nTipo, dica: 'Mesmo formato; aparece apagado atrás. Ex.: Q26:S33' },
+    { chave: 'diaSemana', rotulo: 'Mostrar o dia da semana (Seg, Ter…) no eixo', tipo: 'caixa', mostrarSe: nTipo, dica: 'A primeira coluna precisa ser uma data.' },
+    { chave: 'imp', rotulo: 'Marcar os dias com itens "Imp" da agenda', tipo: 'caixa', mostrarSe: nTipo },
+    { chave: 'passo', rotulo: 'Faixa do histograma', tipo: 'selecao', numero: true, mostrarSe: v => v.tipo === 'histograma', opcoes: [[60, '1 hora'], [30, '30 minutos']] },
+    { chave: 'ativo', rotulo: 'Mostrar este gráfico', tipo: 'caixa' }
+  ];
+  function editar(g) {
+    editandoId = g.id; marcarEditando();
+    Painel.abrir({
+      id: 'g:' + g.id, titulo: g.titulo || 'Gráfico', subtitulo: 'Gráfico · as mudanças valem na hora', campos: CAMPOS_G, valores: () => Object.assign({ passo: 60 }, g),
+      aoMudar(chave, valor) {
+        g[chave] = valor;
+        if (chave === 'tipo' && valor === 'histograma') { g.aba = cfg.planilha.aba; g.intervalo = intervaloInicio(); g.passo = g.passo || 60; }
+        if (chave === 'titulo') {                                       // só o título: troca o texto sem redesenhar
+          persistir(); Painel.titulo(valor || 'Gráfico');
+          grade.querySelectorAll('.gf-card').forEach(c => { if (c.dataset.id === g.id) c.querySelector('h3').textContent = valor || 'Gráfico'; });
+          return;
+        }
+        guardar(); if (chave === 'tipo') Painel.atualizar();
+      },
+      botoes: [{ rotulo: 'Excluir este gráfico', perigo: true, acao: () => {
+        if (!confirm('Excluir o gráfico “' + (g.titulo || 'sem título') + '”?')) return;
+        graficos.splice(graficos.indexOf(g), 1); Painel.fechar(); guardar();
+      } }],
+      aoFechar: () => { if (editandoId === g.id) { editandoId = null; marcarEditando(); } }
     });
   }
-  q('.gf-add').onclick = () => {
-    graficos.push({ id: 'g' + Date.now().toString(36), titulo: 'Novo gráfico', tipo: 'barras', aba: 'Banco', intervalo: 'I3:K', ativo: true });
-    persistir(); montarConfig();
+  const novo = () => {
+    const g = { id: 'g' + Date.now().toString(36), titulo: 'Novo gráfico', tipo: 'barras', aba: cfg.planilha.aba, intervalo: 'I3:K', ativo: true };
+    graficos.push(g); persistir(); renderizarTudo(); editar(g);
   };
-  q('.gf-restaurar').onclick = () => {
-    if (!confirm('Voltar à lista padrão de gráficos (I3:K, M3:O, Q3:S14 e Q18:S25)?')) return;
-    graficos.splice(0, graficos.length, ...JSON.parse(JSON.stringify(GRAF_PADRAO))); guardar(); montarConfig();
+  const restaurar = () => {
+    if (!confirm('Voltar à lista padrão de gráficos? Os que você criou ou mudou serão perdidos.')) return;
+    Painel.fechar(); graficos.splice(0, graficos.length, ...JSON.parse(JSON.stringify(GRAF_PADRAO))); guardar();
   };
+  q('.gf-nova').onclick = novo;
+  q('.gf-engrenagem').onclick = () => Painel.abrir({
+    id: 'cfg:' + ctx.id, titulo: ctx.def().titulo || 'Gráficos de estudo', subtitulo: 'Quadro de gráficos · as mudanças valem na hora', alvo: raiz,
+    campos: [{ chave: 'titulo', rotulo: 'Título do quadro', tipo: 'texto' }], valores: () => ({ titulo: ctx.def().titulo || 'Gráficos de estudo' }),
+    aoMudar(chave, valor) { ctx.ajustar({ titulo: valor }); q('.gf-titulo').textContent = valor; Painel.titulo(valor); },
+    botoes: [{ rotulo: '+ Adicionar gráfico', acao: novo }, { rotulo: 'Restaurar lista padrão', perigo: true, acao: restaurar }]
+  });
+
+  // arrastar pela alça (⋮⋮) para mudar a ordem; vale com mouse e com toque
+  let arr = null;
+  grade.addEventListener('pointerdown', ev => {
+    const alca = ev.target.closest('.gf-alca'); if (!alca || ev.button > 0) return;
+    arr = { card: alca.closest('.gf-card'), pid: ev.pointerId, x0: ev.clientX, y0: ev.clientY, on: false };
+    ev.preventDefault();
+  });
+  window.addEventListener('pointermove', ev => {
+    if (!arr || ev.pointerId !== arr.pid) return;
+    if (!arr.on) { if (Math.hypot(ev.clientX - arr.x0, ev.clientY - arr.y0) < 5) return; arr.on = true; arr.card.classList.add('arrastando'); document.body.classList.add('arrastando-gf'); }
+    if (ev.clientY < 70) scrollBy(0, -12); else if (ev.clientY > innerHeight - 70) scrollBy(0, 12);
+    const alvo = document.elementFromPoint(ev.clientX, ev.clientY);
+    const c = alvo && alvo.closest('.gf-card');
+    if (!c || c === arr.card || c.parentNode !== grade) return;
+    const fs = [...grade.children];
+    if (fs.indexOf(arr.card) < fs.indexOf(c)) c.after(arr.card); else c.before(arr.card);   // o cartão vai trocando de lugar enquanto você arrasta
+  });
+  const soltar = ev => {
+    if (!arr || ev.pointerId !== arr.pid) return;
+    const fim = arr; arr = null; document.body.classList.remove('arrastando-gf'); fim.card.classList.remove('arrastando');
+    if (!fim.on) return;
+    const ordem = [...grade.children].map(c => c.dataset.id).filter(Boolean), novos = ordem.map(id => graficos.find(g => g.id === id));
+    let k = 0; graficos.forEach((g, i) => { if (ordem.includes(g.id)) graficos[i] = novos[k++]; });     // os desligados ficam onde estavam
+    persistir(); renderizarTudo();
+  };
+  window.addEventListener('pointerup', soltar); window.addEventListener('pointercancel', soltar);
 
   return {
     raiz,
     acoes: [{ rotulo: 'Gráficos', dica: 'Abrir os gráficos numa janela ampliada', fazer: abrirPopup }],     // vira um botão na barra da página
     iniciar() {
-      montarConfig(); renderizarTudo(); carregar();
+      renderizarTudo(); carregar();
       // "no nível": o quadro fica nítido quando o topo dele passa de ~55% da altura da tela
       if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => raiz.classList.toggle('em-foco', en.isIntersecting), { rootMargin: '0px 0px -45% 0px' }).observe(raiz);
       else raiz.classList.add('em-foco');

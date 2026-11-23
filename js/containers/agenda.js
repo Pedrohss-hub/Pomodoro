@@ -23,18 +23,6 @@ Containers.registrar('agenda', ctx => {
         <button type="button" class="mini ag-engrenagem" title="De onde ler" aria-label="Configurar a agenda" aria-expanded="false">⚙</button></div>
     </div>
     <p class="status-linha ag-status" role="status"></p>
-    <div class="ag-cfg" hidden>
-      <p class="dica">Colunas, nesta ordem: Status, ID, Descrição, Horas, Categoria, Rest, Data. A cor da data muda conforme os dias que faltam.</p>
-      <div class="sh-2">
-        <div><label class="campo" for="ag-aba-${ctx.id}">Aba</label><input type="text" class="ag-aba" id="ag-aba-${ctx.id}" list="sh-abas" autocomplete="off"></div>
-        <div><label class="campo" for="ag-int-${ctx.id}">Células (ex.: A3:G)</label><input type="text" class="ag-int" id="ag-int-${ctx.id}" autocomplete="off"></div>
-      </div>
-      <div class="sh-2" style="margin-top:.6rem">
-        <div><label class="campo" for="ag-verm-${ctx.id}">Vermelho até (dias)</label><input type="number" class="ag-verm" id="ag-verm-${ctx.id}" min="0"></div>
-        <div><label class="campo" for="ag-amar-${ctx.id}">Amarelo até (dias)</label><input type="number" class="ag-amar" id="ag-amar-${ctx.id}" min="0"></div>
-      </div>
-      <label class="teste" style="margin:.6rem 0 .9rem"><input type="checkbox" class="ag-conc"> Mostrar também os itens concluídos</label>
-    </div>
     <div class="ag-lista"></div>`;
   const q = s => raiz.querySelector(s);
   // outros containers (ex.: o gráfico semanal) leem os itens da agenda por aqui
@@ -230,29 +218,32 @@ Containers.registrar('agenda', ctx => {
       ...escritas(l, { st: false })]));
   };
 
-  /* ---------- configuração (⚙ no topo do container) ---------- */
-  Util.engrenagem(q('.ag-engrenagem'), q('.ag-cfg'));
-  function mostrarCfg() {
-    const c = a();
-    q('.ag-aba').value = c.aba; q('.ag-int').value = c.intervalo; q('.ag-verm').value = c.vermelho; q('.ag-amar').value = c.amarelo; q('.ag-conc').checked = c.concluidas;
-  }
-  ['.ag-aba', '.ag-int', '.ag-verm', '.ag-amar', '.ag-conc'].forEach(s => q(s).addEventListener('change', () => {
-    const iv = q('.ag-int').value.trim().toUpperCase(), ok = REGEX.test(iv);
-    const verm = Math.max(0, parseInt(q('.ag-verm').value) || 0);
-    q('.ag-int').classList.toggle('erro', !ok);
-    ctx.ajustar({
-      aba: q('.ag-aba').value.trim() || PADRAO.aba, vermelho: verm, amarelo: Math.max(verm, parseInt(q('.ag-amar').value) || 0),
-      concluidas: q('.ag-conc').checked, ...(ok ? { intervalo: iv } : {})
-    });
-    mostrarCfg(); render(); if (ctx.visivel()) carregar();
-  }));
+  /* ---------- configuração: o ⚙ abre o painel padrão ao lado (o container continua visível) ---------- */
+  const CAMPOS = [
+    { chave: 'titulo', rotulo: 'Título', tipo: 'texto' },
+    { chave: 'aba', rotulo: 'Aba da planilha', tipo: 'aba' },
+    { chave: 'intervalo', rotulo: 'Células', tipo: 'intervalo', dica: 'Colunas, nesta ordem: Status, ID, Descrição, Horas, Categoria, Rest, Data. Ex.: A3:G' },
+    { chave: 'vermelho', rotulo: 'Data em vermelho até (dias)', tipo: 'numero', min: 0, dica: 'Passou disso, fica amarela; mais longe ainda, verde.' },
+    { chave: 'amarelo', rotulo: 'Data em amarelo até (dias)', tipo: 'numero', min: 0 },
+    { chave: 'concluidas', rotulo: 'Mostrar também os itens concluídos', tipo: 'caixa' }
+  ];
+  q('.ag-engrenagem').onclick = () => Painel.abrir({
+    id: 'cfg:' + ctx.id, titulo: a().titulo, subtitulo: 'Agenda · as mudanças valem na hora', alvo: raiz, campos: CAMPOS, valores: a,
+    aoMudar(chave, valor) {
+      const mud = { [chave]: valor };
+      if (chave === 'vermelho') mud.amarelo = Math.max(valor, a().amarelo);        // o amarelo nunca fica antes do vermelho
+      ctx.ajustar(mud); q('.ag-titulo').textContent = a().titulo; Painel.titulo(a().titulo);
+      render(); if (ctx.visivel() && (chave === 'aba' || chave === 'intervalo')) carregar();
+      if (chave === 'vermelho') Painel.atualizar();
+    }
+  });
 
   setInterval(() => { render(); rodape(); }, 60000);        // vira o dia sem precisar recarregar
 
   return {
     raiz,
     iniciar() {
-      mostrarCfg(); render(); rodape(); avisarMudou(); if (ctx.visivel()) carregar();
+      render(); rodape(); avisarMudou(); if (ctx.visivel()) carregar();
       // apagadinho quando fora da vista, igual aos gráficos
       if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => raiz.classList.toggle('em-foco', en.isIntersecting), { rootMargin: '0px 0px -45% 0px' }).observe(raiz);
       else raiz.classList.add('em-foco');
