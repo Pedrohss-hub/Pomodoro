@@ -12,7 +12,7 @@ const TOKEN = 'COLOQUE-AQUI-UM-TOKEN-LONGO-E-ALEATORIO';
 
 // ----- Travas de segurança (opcionais) -----
 const ESCRITA_LIBERADA = true; // false = o script só consegue LER
-const ABAS_PERMITIDAS = ['Banco', 'Config'];    // [] = todas as abas; ou ['Banco', 'Config'] para limitar
+const ABAS_PERMITIDAS = [];    // [] = todas as abas; ou ['Banco', 'Config'] para limitar
 
 const VERSAO = 'v-generico-1';
 

@@ -2,21 +2,22 @@
    Cada container tem um "tipo" (arquivo em js/containers/) e a configuração dele.
    Dica: "ligado: false" desliga um container sem apagar nada. */
 const PAGINAS = [
-  { id: 'pomodoro', containers: [
+  { id: 'pomodoro', titulo: 'Pomodoro', fixa: 'pg-pomo', containers: [
     { id: 'agenda', tipo: 'agenda', titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false },
     { id: 'graficos', tipo: 'graficos', titulo: 'Gráficos de estudo', graficos: null }   // null = lista padrão (editável no ⚙ do quadro)
-  ] }
+  ] },
+  { id: 'grade', titulo: 'Grade', fixa: 'pg-grade', larga: true }
 ];
+/* Páginas: "fixa" aponta para uma página escrita no index.html (módulo fixo: Pomodoro, Grade). Sem "fixa", a página é criada
+   sozinha só com os containers dela. "ligado: false" esconde a página sem apagar nada. "larga: true" usa a tela larga.
+   Exemplo de página nova (cole dentro da lista acima):
+     { id: 'financas', titulo: 'Finanças', containers: [ { id: 'agenda2', tipo: 'agenda', titulo: 'Contas', aba: 'Contas', intervalo: 'A3:G' } ] } */
 
-(() => {
-  const pomoVisivel = () => !$('#pg-pomo').hidden;
-  const destino = document.querySelector('.painel-estudo');
-  PAGINAS.find(p => p.id === 'pomodoro').containers.forEach(def =>
-    Containers.montar(def, destino, {
-      visivel: pomoVisivel,
-      herdar: def.id === 'agenda' ? cfg.agenda : def.id === 'graficos' ? { graficos: cfg.graficos } : undefined   // aproveita o que já estava configurado
-    }));
-})();
+// aproveita o que já estava configurado antes dos containers existirem (só vale na 1ª vez)
+Roteador.iniciar(PAGINAS, { herdar: {
+  agenda: () => cfg.agenda,
+  graficos: () => (Array.isArray(cfg.graficos) ? { graficos: cfg.graficos } : undefined)
+} });
 
 /* Levar a configuração para outros aparelhos: ela fica salva por navegador. Copie daqui para o PAGINAS acima
    e envie ao GitHub; nos outros aparelhos use "Usar a do projeto". */

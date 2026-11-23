@@ -6,7 +6,9 @@
    O que o tipo recebe (ctx):  id, def() (a configuração atual), ajustar({campo: valor}) (guarda mudanças), visivel() (a página dele está aberta?),
                                publicar('nome', () => dados) (oferece dados a outros containers) e consultar('nome') (junta os dados oferecidos por todos)
    O que o tipo devolve:       raiz (o elemento a colocar na página), aparecer() opcional (chamado quando a página dele é aberta),
-                               iniciar() opcional (chamado logo depois de colocado na página)
+                               iniciar() opcional (chamado logo depois de colocado na página),
+                               acoes opcional: [{ rotulo, dica, fazer }] = botões para a barra da página (o Roteador coloca)
+   Quem monta os containers de cada página e avisa quando a página muda é o Roteador (js/core/roteador.js).
    Carregue depois de pomodoro.js (usa LS) e antes dos arquivos de js/containers/. */
 const Containers = (() => {
   const CHAVE = 'ct-defs-v1';
@@ -45,13 +47,13 @@ const Containers = (() => {
     } catch (err) { console.error('container "' + base.id + '" falhou ao montar:', err); return null; }
   }
 
-  // Quando a página muda (hash), avisa os containers cuja página ficou visível
-  window.addEventListener('hashchange', () => vivos.forEach(v => {
+  // O Roteador chama isto quando a página muda: os containers que ficaram visíveis se atualizam (aparecer)
+  const paginaMudou = () => vivos.forEach(v => {
     try { if (v.visivel() && v.inst.aparecer) v.inst.aparecer(); } catch (err) { console.error(err); }
-  }));
+  });
 
   const todas = () => Object.keys(bases).map(id => def(id));     // definições de agora (padrão + o que você mudou), prontas para colar em js/paginas.js
   const limparAjustes = () => { Object.keys(bases).forEach(id => { ajustes[id] = {}; }); LS.set(CHAVE, ajustes); };   // {} (e não apagar) para não herdar de novo a configuração antiga
 
-  return { registrar, montar, def, ajustar, todas, limparAjustes };
+  return { registrar, montar, def, ajustar, paginaMudou, todas, limparAjustes };
 })();

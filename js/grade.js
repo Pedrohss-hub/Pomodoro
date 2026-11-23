@@ -661,17 +661,6 @@ EDM0685|Experimentação e Modelagem|1|2|EST`;
     } catch (err) { avisar('Não consegui importar: ' + err.message); }
   };
 
-  /* ---------- abas ---------- */
-  function pagina() {
-    const g = location.hash === '#grade';
-    $('#pg-pomo').hidden = g; $('#pg-grade').hidden = !g;
-    document.querySelector('main').classList.toggle('larga', g);
-    document.querySelectorAll('.abas button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.pg === 'grade') === g)));
-  }
-  document.querySelectorAll('.abas button').forEach(b => b.onclick = () => { location.hash = b.dataset.pg === 'grade' ? 'grade' : 'pomodoro'; });
-  window.addEventListener('hashchange', pagina);
-
   desenhar();
   infoPadrao();
-  pagina();
 })();

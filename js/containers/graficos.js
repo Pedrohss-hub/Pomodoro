@@ -356,8 +356,8 @@ Containers.registrar('graficos', ctx => {
 
   return {
     raiz,
+    acoes: [{ rotulo: 'Gráficos', dica: 'Abrir os gráficos numa janela ampliada', fazer: abrirPopup }],     // vira um botão na barra da página
     iniciar() {
-      const bt = $('#btn-graficos'); if (bt) { bt.hidden = false; bt.onclick = abrirPopup; }     // botão "Gráficos" do topo = janela ampliada
       montarConfig(); renderizarTudo(); carregar();
       // "no nível": o quadro fica nítido quando o topo dele passa de ~55% da altura da tela
       if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => raiz.classList.toggle('em-foco', en.isIntersecting), { rootMargin: '0px 0px -45% 0px' }).observe(raiz);
