@@ -13,7 +13,12 @@
      Abaixo de 72rem (celular e tablet) tudo vira uma coluna só, seguindo a ordem.
      Mudou algum desses valores com Containers.ajustar(...)? Chame Roteador.reaplicar() para a tela refletir.
    O endereço da página é o #id (ex.: #grade). Sem endereço conhecido, abre a primeira página.
-   Um container pode oferecer botões para a barra da página devolvendo  acoes: [{ rotulo, dica, fazer }].
+   Botões da barra da página (o [data-acoes] do index.html; nas páginas criadas aqui a barra nasce sozinha). Duas origens:
+     - de um CONTAINER: ele devolve  acoes: [{ rotulo, dica, fazer }]  (ex.: "Gráficos");
+     - da PÁGINA (não é de um container): quem quiser chama  Roteador.acaoDePagina(info => acao | nada)  antes do iniciar().
+       A função roda uma vez por página montada e recebe  info = { id, el, destino, itens: [{ id, raiz }] }  (só os containers ligados);
+       devolve  { rotulo, dica, fazer, botao }  para ganhar um botão naquela página, ou nada. "botao" (opcional) recebe o botão criado.
+       Exemplo: o js/core/editor-layout.js ("Editar layout"). Os botões de containers vêm primeiro, depois os de página.
    Carregue depois de util.js e containers.js; quem chama Roteador.iniciar(PAGINAS) é o js/paginas.js, por último. */
 const Roteador = (() => {
   const h = Util.h;
@@ -26,6 +31,7 @@ const Roteador = (() => {
     lateral: { n: 2, colunas: '22rem minmax(0, 1fr)' }
   };
   const montadas = [];        // por página: { p, destino, itens: [{ inst, def, pos }] }, para o reaplicar()
+  const provedores = [];      // funções que oferecem botões da PÁGINA à barra (ver acaoDePagina)
   let ligadas = [];           // páginas que existem agora, na ordem do menu
   const els = {};             // id da página -> elemento
   let atualId = null;
@@ -69,8 +75,11 @@ const Roteador = (() => {
     if (!acoes.length) return;
     let slot = el.querySelector('[data-acoes]');
     if (!slot) { const barra = h('div', 'barra'); slot = h('div', 'barra-dir'); barra.append(slot); el.prepend(barra); }
-    acoes.forEach(a => { const b = h('button', null, a.rotulo); b.type = 'button'; if (a.dica) b.title = a.dica; b.onclick = a.fazer; slot.append(b); });
+    acoes.forEach(a => { const b = h('button', null, a.rotulo); b.type = 'button'; if (a.dica) b.title = a.dica; b.onclick = a.fazer; slot.append(b); if (a.botao) a.botao(b); });
   }
+
+  // registra quem oferece um botão da PÁGINA (não de um container); ver o comentário do topo
+  const acaoDePagina = fn => { provedores.push(fn); };
 
   // opcoes.herdar: { idDoContainer: configuração antiga (ou função que devolve) }, usada só na 1ª vez
   function iniciar(paginas, opcoes = {}) {
@@ -105,11 +114,13 @@ const Roteador = (() => {
         if (inst.acoes) acoes.push(...inst.acoes);
       });
       montadas.push(reg);
+      const info = { id: p.id, el: els[p.id], destino, itens: reg.itens.map(it => ({ id: it.def.id, raiz: it.inst.raiz })) };
+      provedores.forEach(fn => { try { const a = fn(info); if (a) acoes.push(a); } catch (err) { console.error('botão de página falhou (' + p.id + '):', err); } });
       colocarAcoes(els[p.id], acoes);
     });
 
     window.addEventListener('hashchange', mostrar);
   }
 
-  return { iniciar, visivel, atual, reaplicar };
+  return { iniciar, visivel, atual, reaplicar, acaoDePagina };
 })();

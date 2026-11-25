@@ -11,3 +11,16 @@
     .painel-estudo { width: min(94vw, 84rem); position: relative; left: 50%; transform: translateX(-50%); grid-template-columns: var(--ct-colunas, minmax(0, 1fr)); }
     .painel-estudo > .box { grid-column: span var(--ct-ocupa, 1); }
   }
+
+  /* Modo "Editar layout" (js/core/editor-layout.js): só existe enquanto o modo está ligado; fora dele nada disto vale.
+     A alça fica por cima da borda de cima (position: absolute): não muda o tamanho de nada, então os gráficos não redesenham. */
+  .barra .el-botao[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .painel-estudo.el-editando > .box { position: relative; opacity: 1; filter: none; outline: 2px dashed var(--cor); outline-offset: 3px; }
+  .painel-estudo.el-editando > .box.editando { outline-style: solid; }
+  .painel-estudo.el-editando > .box.el-arrastado { opacity: .45; }
+  .el-alca { position: absolute; top: 0; left: 50%; transform: translate(-50%, -60%); z-index: 3; display: inline-flex; align-items: center; gap: .4rem; box-sizing: border-box; min-height: 2rem; max-width: calc(100% - 1.5rem); padding: 0 1rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .8rem; font-weight: 600; line-height: 1; white-space: nowrap; cursor: grab; box-shadow: 0 2px 8px rgba(35, 32, 58, .25); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .el-pontos { letter-spacing: -.2em; }
+  .el-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .el-chip { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; padding: .5rem 1rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .85rem; font-weight: 600; white-space: nowrap; box-shadow: 0 12px 30px rgba(35, 32, 58, .3); }
+  body.el-arrastando { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+  body.el-arrastando .el-alca { cursor: grabbing; }
