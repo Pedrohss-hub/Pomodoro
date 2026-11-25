@@ -1,12 +1,6 @@
-/* Agenda: lista ao lado dos gráficos (acima deles em telas estreitas) e a cor da data pelos dias que faltam. */
-  .painel-estudo { display: grid; gap: calc(1rem * var(--esp)); align-items: start; margin-top: calc(3rem * var(--esp)); }
-  .painel-estudo > .box { margin: 0; min-width: 0; }
+/* Agenda: a lista e a cor da data pelos dias que faltam. (O grid onde ela fica está em layout.css.) */
   .acoes-topo { display: flex; align-items: center; gap: .5rem; min-width: 0; }
   .painel-estudo .box-topo { flex-wrap: wrap; gap: .4rem .75rem; margin-bottom: .75rem; }
-  @media (min-width: 72rem) {
-    /* mais larga que a coluna do cronômetro: agenda à esquerda, gráficos à direita */
-    .painel-estudo { width: min(94vw, 84rem); position: relative; left: 50%; transform: translateX(-50%); grid-template-columns: 22rem minmax(0, 1fr); }
-  }
   /* o status ("Atualizando…") fica numa linha própria, com altura fixa: nada se mexe quando o texto muda */
   .status-linha { min-height: 1.2rem; margin: 0 0 .7rem; font-size: .8rem; color: var(--soft); }
   .painel-estudo .box-topo { margin-bottom: .3rem; }

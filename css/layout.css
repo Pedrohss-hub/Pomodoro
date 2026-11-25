@@ -1,0 +1,13 @@
+/* Layout das páginas: o grid onde ficam os containers (.painel-estudo).
+   O desenho fica aqui; o js/core/roteador.js só preenche as variáveis de cada página e de cada bloco:
+     --ct-colunas   as colunas do grid (vem do "layout.tipo" da página, em js/paginas.js)
+     --ct-espaco    multiplicador do espaço entre os blocos (vem do "layout.espaco"); soma-se ao ajuste geral --esp de Aparência
+     --ct-ocupa     quantas colunas o bloco ocupa (vem do "ocupa" do container)
+   O "order" de cada bloco é escrito direto no elemento (vem do "ordem" do container).
+   Abaixo de 72rem (celular e tablet) tudo vira uma coluna só, na ordem: assim nenhum layout quebra em tela pequena. */
+  .painel-estudo { display: grid; grid-template-columns: minmax(0, 1fr); gap: calc(1rem * var(--esp) * var(--ct-espaco, 1)); align-items: start; margin-top: calc(3rem * var(--esp)); }
+  .painel-estudo > .box { margin: 0; min-width: 0; }
+  @media (min-width: 72rem) {
+    .painel-estudo { width: min(94vw, 84rem); position: relative; left: 50%; transform: translateX(-50%); grid-template-columns: var(--ct-colunas, minmax(0, 1fr)); }
+    .painel-estudo > .box { grid-column: span var(--ct-ocupa, 1); }
+  }

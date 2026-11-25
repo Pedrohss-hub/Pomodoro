@@ -29,11 +29,11 @@ const Painel = (() => {
       <button type="button" class="painel-fechar" aria-label="Fechar o painel" title="Fechar">✕</button></div>
       <div class="painel-corpo"></div><div class="painel-rodape"></div>`;
     document.body.append(el);
-    el.querySelector('.painel-fechar').onclick = fechar;
+    el.querySelector('.painel-fechar').onclick = () => fechar();       // sem repassar o evento do clique: ele seria lido como "troca" e o painel não fecharia
     document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && atual && !ev.defaultPrevented && !document.querySelector('dialog[open]')) fechar(); });
   }
 
-  const carregarAbas = () => { if (!abasCache.length && Sheets.pronto()) Sheets.abas().then(d => { if (d && d.ok) abasCache = d.abas; }).catch(() => {}); };
+  const carregarAbas = () => { if (!abasCache.length && Sheets.pronto()) Sheets.abas().then(d => { if (d && d.ok && Array.isArray(d.abas)) abasCache = d.abas; }).catch(() => {}); };
 
   function campo(c, v) {
     const caixa = h('div', 'pn-campo');

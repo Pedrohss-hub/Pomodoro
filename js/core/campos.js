@@ -1,6 +1,6 @@
 /* Campos padronizados: troca a lista nativa do Chrome (datalist) por uma lista do próprio site, com o mesmo visual em todo lugar.
      Combo.ligar(input, fonte)   fonte = função que devolve uma lista de textos, ou um <datalist>
-   Todo <input list="..."> do HTML já é ligado sozinho. Os <select> são padronizados só por CSS (css/painel.css). */
+   Todo <input list="..."> do HTML já é ligado sozinho. Os <select> são padronizados só por CSS (css/planilha.css). */
 const Combo = (() => {
   let lista = null, dono = null, indice = -1;
   const norm = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

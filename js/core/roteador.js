@@ -6,12 +6,26 @@
    - ligado: false   a página some do menu e da tela, sem apagar nada.
    - larga: true     a página usa a largura grande (a Grade usa).
    - destino         (opcional) onde os containers entram dentro da página; o padrão é ".painel-estudo".
+   - layout: { tipo, espaco }   como os containers se distribuem na página (o desenho está em css/layout.css):
+        tipo   'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'lateral' (coluna estreita de 22rem + o resto)
+        espaco multiplicador do espaço entre os blocos (1 = normal, 0.5 = metade, 2 = dobro); soma-se ao ajuste geral de Aparência
+     Em cada container: ordem (a posição dele; o padrão é a posição na lista) e ocupa (quantas colunas ocupa; o padrão é 1).
+     Abaixo de 72rem (celular e tablet) tudo vira uma coluna só, seguindo a ordem.
+     Mudou algum desses valores com Containers.ajustar(...)? Chame Roteador.reaplicar() para a tela refletir.
    O endereço da página é o #id (ex.: #grade). Sem endereço conhecido, abre a primeira página.
    Um container pode oferecer botões para a barra da página devolvendo  acoes: [{ rotulo, dica, fazer }].
    Carregue depois de util.js e containers.js; quem chama Roteador.iniciar(PAGINAS) é o js/paginas.js, por último. */
 const Roteador = (() => {
   const h = Util.h;
   const ID_OK = /^[a-z0-9_-]+$/i;
+  // os tipos de grid (n = número de colunas; colunas = o grid-template-columns usado a partir de 72rem)
+  const LAYOUTS = {
+    coluna:  { n: 1, colunas: 'minmax(0, 1fr)' },
+    duas:    { n: 2, colunas: 'repeat(2, minmax(0, 1fr))' },
+    tres:    { n: 3, colunas: 'repeat(3, minmax(0, 1fr))' },
+    lateral: { n: 2, colunas: '22rem minmax(0, 1fr)' }
+  };
+  const montadas = [];        // por página: { p, destino, itens: [{ inst, def, pos }] }, para o reaplicar()
   let ligadas = [];           // páginas que existem agora, na ordem do menu
   const els = {};             // id da página -> elemento
   let atualId = null;
@@ -28,6 +42,27 @@ const Roteador = (() => {
     document.querySelectorAll('.abas button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pg === atualId)));
     Containers.paginaMudou();                 // avisa os containers: quem ficou visível se atualiza
   }
+
+  // escolhe o tipo de grid da página e o espaço entre os blocos (só escreve as variáveis; o desenho está em css/layout.css)
+  function aplicarLayout(p, destino) {
+    const l = Object.assign({ tipo: 'coluna', espaco: 1 }, p.layout);
+    let modelo = LAYOUTS[l.tipo];
+    if (!modelo) { console.error('página "' + p.id + '": layout desconhecido "' + l.tipo + '" (use: ' + Object.keys(LAYOUTS).join(', ') + ')'); modelo = LAYOUTS.coluna; }
+    const esp = Number(l.espaco);
+    destino.style.setProperty('--ct-colunas', modelo.colunas);
+    destino.style.setProperty('--ct-espaco', String(Number.isFinite(esp) ? Math.min(5, Math.max(0, esp)) : 1));
+    return modelo;
+  }
+
+  // ordem e largura (em colunas) de um bloco; o que foi ajustado com Containers.ajustar vale mais que o de paginas.js
+  function posicionar(it, modelo) {
+    const d = Containers.def(it.def.id), ordem = Number(d.ordem), ocupa = Math.round(Number(d.ocupa));
+    it.inst.raiz.style.order = String(Number.isFinite(ordem) ? ordem : it.pos);
+    it.inst.raiz.style.setProperty('--ct-ocupa', String(Math.min(modelo.n, Math.max(1, Number.isFinite(ocupa) ? ocupa : 1))));
+  }
+
+  // refaz layout, ordem e largura de todas as páginas (use depois de mudar algo com Containers.ajustar)
+  function reaplicar() { montadas.forEach(m => { const modelo = aplicarLayout(m.p, m.destino); m.itens.forEach(it => posicionar(it, modelo)); }); }
 
   // botões que os containers pedem para a barra da página (ex.: "Gráficos")
   function colocarAcoes(el, acoes) {
@@ -55,20 +90,26 @@ const Roteador = (() => {
     mostrar();                                // decide a página de agora ANTES de montar os containers (eles perguntam se estão visíveis)
 
     const destinoDe = p => els[p.id].querySelector(p.destino || '.painel-estudo');
+    montadas.length = 0;
     ligadas.forEach(p => {
-      const acoes = [];
-      (p.containers || []).forEach(def => {
-        const destino = destinoDe(p);
-        if (!destino) { console.error('página "' + p.id + '": não achei o destino ' + (p.destino || '.painel-estudo') + ' para o container "' + def.id + '"'); return; }
+      const acoes = [], lista = p.containers || [];
+      if (!lista.length) return;
+      const destino = destinoDe(p);
+      if (!destino) { console.error('página "' + p.id + '": não achei o destino ' + (p.destino || '.painel-estudo') + ' para os containers'); return; }
+      const modelo = aplicarLayout(p, destino), reg = { p, destino, itens: [] };
+      lista.forEach((def, i) => {
         const velho = opcoes.herdar && opcoes.herdar[def.id];
         const inst = Containers.montar(def, destino, { visivel: () => visivel(p.id), herdar: typeof velho === 'function' ? velho() : velho });
-        if (inst && inst.acoes) acoes.push(...inst.acoes);
+        if (!inst) return;
+        const it = { inst, def, pos: i + 1 }; reg.itens.push(it); posicionar(it, modelo);
+        if (inst.acoes) acoes.push(...inst.acoes);
       });
+      montadas.push(reg);
       colocarAcoes(els[p.id], acoes);
     });
 
     window.addEventListener('hashchange', mostrar);
   }
 
-  return { iniciar, visivel, atual };
+  return { iniciar, visivel, atual, reaplicar };
 })();
