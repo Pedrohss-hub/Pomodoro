@@ -18,10 +18,13 @@
      texto | numero (min, max) | caixa | selecao (opcoes: [[valor, rótulo]], numero: true)
      intervalo (células tipo A3:G; opcional: true)      aba (nome da aba, com sugestões da planilha)      sugestao (sugestoes: () => [textos])
      titulo (só um subtítulo para separar grupos; rotulo, dica)      botao (rotulo, perigo, acao: um botão no meio dos campos)
+     grupo (rotulo, chave, aberto, campos: [...])   caixa que abre e fecha, com outros campos dentro; lembra se está aberta (pela chave)
+     custom (montar: valores => elemento)           um controle feito por fora (ex.: js/core/controles.js); o Painel só o coloca na lista
    Opções comuns: dica, mostrarSe(valores), recarrega (redesenha os campos ao mudar), ao: 'input' | 'change' (quando avisar) */
 const Painel = (() => {
   const h = Util.h;
   let el = null, atual = null, abasCache = [];
+  const gruposAbertos = new Map();      // chave do grupo -> aberto? (lembra enquanto a página não é recarregada)
 
   function montar() {
     if (el) return;
@@ -38,6 +41,15 @@ const Painel = (() => {
 
   function campo(c, v) {
     const caixa = h('div', 'pn-campo');
+    if (c.tipo === 'custom') { caixa.append(c.montar(v)); return caixa; }
+    if (c.tipo === 'grupo') {                                           // caixa que abre e fecha; os campos de dentro funcionam como os de fora
+      const d = h('details', 'pn-grupo'), corpo = h('div', 'pn-grupo-corpo'), k = c.chave || c.rotulo;
+      d.open = gruposAbertos.has(k) ? gruposAbertos.get(k) : !!c.aberto;
+      d.addEventListener('toggle', () => gruposAbertos.set(k, d.open));
+      d.append(h('summary', null, c.rotulo), corpo);
+      corpo.append(...c.campos.filter(x => !x.mostrarSe || x.mostrarSe(v)).map(x => campo(x, v)));
+      caixa.append(d); return caixa;
+    }
     if (c.tipo === 'titulo' || c.tipo === 'botao') {                    // não guardam valor: só texto ou botão
       if (c.tipo === 'titulo') caixa.append(h('h3', 'pn-secao', c.rotulo));
       else { const b = h('button', 'painel-btn' + (c.perigo ? ' perigo' : ''), c.rotulo); b.type = 'button'; b.onclick = c.acao; caixa.append(b); }
@@ -84,9 +96,10 @@ const Painel = (() => {
 
   function desenhar() {
     const corpo = el.querySelector('.painel-corpo'), rod = el.querySelector('.painel-rodape'), v = atual.valores();
-    const sc = corpo.scrollTop;
+    const sc = corpo.scrollTop, f = document.activeElement, foco = f && f.dataset ? f.dataset.foco : null;   // data-foco: o campo que estava em foco volta a ficar depois de redesenhar
     corpo.replaceChildren(...atual.campos.filter(c => !c.mostrarSe || c.mostrarSe(v)).map(c => campo(c, v)));
     corpo.scrollTop = sc;
+    if (foco) { const n = [...corpo.querySelectorAll('[data-foco]')].find(x => x.dataset.foco === foco); if (n && !n.disabled) n.focus({ preventScroll: true }); }
     rod.replaceChildren(...(atual.botoes || []).map(b => { const x = h('button', 'painel-btn' + (b.perigo ? ' perigo' : ''), b.rotulo); x.type = 'button'; x.onclick = b.acao; return x; }));
     rod.hidden = !rod.children.length;
   }

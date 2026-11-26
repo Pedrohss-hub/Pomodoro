@@ -18,7 +18,7 @@
         colunas  GRADE LIVRE (opcional; se existir, vale no lugar de tipo, pilha e coluna1): lista com o tamanho de cada coluna, até 12.
                  Número = parte do espaço que sobra (1, 2...: 2 é o dobro de 1); texto com unidade = tamanho fixo ('22rem', '300px', '30%', '1.5fr').
                  Ex.: colunas: ['22rem', 1] = coluna estreita fixa + o resto;  colunas: [1, 1, 1] = três iguais
-        linhas   (só com colunas) lista com a altura de cada linha, até 24: 'auto' (a do conteúdo, o padrão), número (parte do que sobra) ou '12rem' (altura MÍNIMA).
+        linhas   (só com colunas) lista com a altura de cada linha, até 24: 'auto' (a do conteúdo, o padrão), número (parte do que sobra) ou '12rem' / '200px' (altura MÍNIMA).
                  Linhas que faltam são 'auto'. Ex.: linhas: ['auto', 1]
    - Na GRADE LIVRE cada container pode dizer onde fica:  col (coluna onde começa, 1...), lin (linha onde começa, 1...), ocupa (quantas colunas) e
      ocupaLin (quantas linhas; padrão 1). Sem col/lin ele entra no primeiro espaço livre, seguindo a ordem. Dois blocos no mesmo espaço se sobrepõem: cuide para não repetir.
@@ -60,7 +60,7 @@ const Roteador = (() => {
     lateral: { n: 2, colunas: '22rem minmax(0, 1fr)' }
   };
   // grade livre: tamanho das trilhas (colunas e linhas) escritos em CSS; valor inválido vira o padrão
-  const UNID = /^\d+(\.\d+)?(rem|px|%|fr)$/, REM = /^\d+(\.\d+)?rem$/;
+  const UNID = /^\d+(\.\d+)?(rem|px|%|fr)$/, ALTURA = /^\d+(\.\d+)?(rem|px)$/;
   const MAX_COL = 12, MAX_LIN = 24;
   const livre = l => Array.isArray(l.colunas) && l.colunas.length > 0;
   const CHAVE = 'paginas';    // nome dos ajustes de páginas no Armazém (navegador + Sheets): { idDaPagina: { layouts, entre } }
@@ -104,7 +104,7 @@ const Roteador = (() => {
   const entreDe = p => { const aj = ajustesPag[p.id] || {}; return limitar(aj.entre != null ? aj.entre : p.entre, 0, 5, 1); };
 
   const colCss = v => (typeof v === 'number' ? 'minmax(0, ' + limitar(v, .1, 20, 1) + 'fr)' : UNID.test(String(v)) ? (/fr$/.test(v) ? 'minmax(0, ' + v + ')' : String(v)) : 'minmax(0, 1fr)');
-  const linCss = v => (typeof v === 'number' ? 'minmax(0, ' + limitar(v, .1, 20, 1) + 'fr)' : REM.test(String(v)) ? 'minmax(' + v + ', auto)' : 'auto');
+  const linCss = v => (typeof v === 'number' ? 'minmax(0, ' + limitar(v, .1, 20, 1) + 'fr)' : ALTURA.test(String(v)) ? 'minmax(' + v + ', auto)' : 'auto');
   const inteiro = (v, min, max) => { const n = Math.round(Number(v)); return v != null && v !== '' && Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : null; };   // null = não definido
   const nColunas = (l, p) => (livre(l) ? Math.min(MAX_COL, l.colunas.length) : modeloDe(l, p).n);
 

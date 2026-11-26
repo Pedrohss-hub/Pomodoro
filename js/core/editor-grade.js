@@ -13,7 +13,13 @@
    Ordem das telas estreitas ("ordem"): ao MOVER ou TROCAR blocos ela é reescrita em leitura linha a linha (de cima para baixo, da esquerda para a direita).
    Nas outras edições (largura, altura, alças, + e ×) ela não muda.
    Linhas vazias, enquanto se edita, ganham altura mínima de 5rem para dar para soltar blocos nelas (só na tela de edição).
-   Como usar: só o editor-layout.js chama:  EditorGrade.ligar(info, depois)  /  desligar()  /  atualizar()  /  larga()
+   Como usar: o editor-layout.js chama  EditorGrade.ligar(info, depois)  /  desligar()  /  atualizar()  /  larga().
+   O painel de layouts (js/core/painel-layout.js) usa, enquanto o modo está ligado e a tela é larga:
+     EditorGrade.dados(idDoLayout)                      a grade de agora: { livre, colunas, linhas, blocos, px: { c, l }, larguraPx } (ou null)
+     EditorGrade.tamanho(idDoLayout, nCol, nLin)        muda quantas colunas e linhas; só tira as VAZIAS do fim. Devolve { ok, msg }
+     EditorGrade.tamanhoBloco(idDoLayout, idBloco, w, h) muda quantas colunas/linhas o bloco ocupa (nunca encosta em outro). Devolve { ok, msg }
+     EditorGrade.previa(idDoLayout, 'c' | 'l', lista)    mostra ao vivo uma lista nova de colunas ou linhas, sem guardar
+     EditorGrade.definir(idDoLayout, 'c' | 'l', lista)   guarda a lista nova de colunas ou linhas (layout antigo vira grade livre)
    Carregue depois de roteador.js e containers.js, e antes de editor-layout.js. Estilo: css/layout.css (classes el-grade, el-celula, el-divisor, el-tag, el-mais, el-redim). */
 const EditorGrade = (() => {
   const h = Util.h;
@@ -48,6 +54,7 @@ const EditorGrade = (() => {
   const nLin = m => Math.max(m.linhas.length, 1);
   const areasDe = () => [...st.info.destino.querySelectorAll(':scope > .ct-area')];
   const itemDe = id => st.info.itens.find(it => it.id === id);
+  const areaDe = lid => areasDe().find(a => a.dataset.layout === lid) || null;
 
   // Roteador.modelo + posição dos blocos sem col/lin (entram sozinhos no 1º espaço livre): vem de onde o navegador os desenhou
   function modeloReal(area) {
@@ -365,13 +372,57 @@ const EditorGrade = (() => {
   function soltarArrasto() { const a = arr; arr = null; limparMarcas(); if (a && a.res && a.res.ok) gravar(a.area, a.res.modelo, true); }
   function cancelarArrasto() { arr = null; limparMarcas(); }
 
+  /* ---------- o que o painel de layouts usa (ver o comentário do topo) ---------- */
+  function dados(lid) {
+    if (!st || !larga()) return null;
+    const area = areaDe(lid), m = area && modeloReal(area); if (!m) return null;
+    const g = medir(area);
+    return { livre: m.livre, colunas: m.colunas, linhas: m.linhas, blocos: m.blocos, px: { c: g.xs.map(f => f[1] - f[0]), l: g.ys.map(f => f[1] - f[0]) }, larguraPx: g.r.width };
+  }
+  function tamanho(lid, nC, nL) {
+    const area = st && larga() ? areaDe(lid) : null, m = area && modeloReal(area);
+    if (!m) return { ok: false, msg: 'A grade só pode ser editada em tela larga.' };
+    nC = limitar(nC, 1, MAX_COL); nL = limitar(nL, 1, MAX_LIN);
+    for (let c = m.colunas.length; c > nC; c--) if (!colunaVazia(m, c)) return { ok: false, msg: 'A coluna ' + c + ' tem um bloco. Mova o bloco antes de tirar a coluna.' };
+    for (let r = nLin(m); r > nL; r--) if (!linhaVazia(m, r)) return { ok: false, msg: 'A linha ' + r + ' tem um bloco. Mova o bloco antes de tirar a linha.' };
+    const c0 = m.colunas.length, l0 = nLin(m);
+    if (nC === c0 && nL === l0) return { ok: true };
+    m.colunas.length = Math.min(c0, nC); while (m.colunas.length < nC) m.colunas.push(1);
+    m.linhas.length = Math.min(m.linhas.length, nL); while (m.linhas.length < nL) m.linhas.push('auto');
+    gravar(area, m, false);
+    return { ok: true };
+  }
+  function tamanhoBloco(lid, id, w, hh) {
+    const area = st && larga() ? areaDe(lid) : null, m = area && modeloReal(area), b = m && m.blocos.find(x => x.id === id);
+    if (!b) return { ok: false, msg: 'Não achei este bloco.' };
+    const r = tentarRedim(m, id, w, hh, 'c');
+    if (!r.ok) return { ok: false, msg: w === b.ocupa && hh === b.ocupaLin ? '' : 'Não cabe: tem outro bloco no caminho (ou a grade acaba).' };
+    gravar(area, r.modelo, false);
+    return { ok: true };
+  }
+  function previa(lid, eixo, lista) {
+    const area = st && larga() ? areaDe(lid) : null, m = area && modeloReal(area); if (!m) return;
+    const mm = Object.assign({}, m, eixo === 'c' ? { colunas: lista } : { linhas: lista });
+    const css = Roteador.cssTrilhas(mm.colunas, linhasEd(mm));
+    area.style.setProperty('--ct-colunas', css.colunas);
+    if (css.linhas) area.style.setProperty('--ct-linhas', css.linhas);
+    st.previa = true; clearTimeout(st.tp); st.tp = setTimeout(() => { if (st) st.previa = false; }, 500);   // enquanto mexe, o redesenho automático espera
+    reposicionar(area);
+  }
+  function definir(lid, eixo, lista) {
+    const area = st && larga() ? areaDe(lid) : null, m = area && modeloReal(area); if (!m) return false;
+    if (eixo === 'c') m.colunas = lista.slice(0, MAX_COL); else m.linhas = lista.slice(0, MAX_LIN);
+    st.previa = false; gravar(area, m, false);
+    return true;
+  }
+
   /* ---------- ligar e desligar ---------- */
   const TITULOS = { d: 'Arraste para ocupar mais colunas', b: 'Arraste para ocupar mais linhas', c: 'Arraste para ocupar mais colunas e linhas' };
   function ligar(info, depois) {
     if (st) desligar();
     st = { info, depois, mexeu: false, raf: 0, obs: new Set() };
     st.ro = new ResizeObserver(entradas => {         // tamanho do layout mudou (janela, painel): refaz o desenho (só se mudou de verdade)
-      if (drag || arr || !entradas.some(e => tam(e.target) !== e.target._tam)) return;
+      if (drag || arr || st.previa || !entradas.some(e => tam(e.target) !== e.target._tam)) return;
       cancelAnimationFrame(st.raf); st.raf = requestAnimationFrame(() => { if (st && !drag && !arr) atualizar(); });
     });
     st.mq = matchMedia('(min-width: 72rem)'); st.mqf = () => atualizar(); st.mq.addEventListener('change', st.mqf);
@@ -393,5 +444,5 @@ const EditorGrade = (() => {
     return mexeu;
   }
 
-  return { ligar, desligar, atualizar, larga, comecarArrasto, sobre, limparSobre, soltarArrasto, cancelarArrasto };
+  return { ligar, desligar, atualizar, larga, dados, tamanho, tamanhoBloco, previa, definir, comecarArrasto, sobre, limparSobre, soltarArrasto, cancelarArrasto };
 })();

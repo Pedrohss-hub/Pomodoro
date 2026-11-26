@@ -6,7 +6,7 @@
    com Containers.ajustar (navegador + Sheets, como qualquer ajuste) e o Roteador.reaplicar() refaz a tela a partir dela.
    Para OUTRA área: ao entrar nela, a área ganha um contorno e uma barra mostra onde o bloco vai ficar; o bloco só muda de lugar ao soltar
    (grava "layout" e "ordem" dele e renumera as duas áreas). Esc cancela.
-   Ao ligar o modo o Painel ao lado abre com os LAYOUTS da página (js/core/painel-layout.js): nome, tipo de grade, espaços, colunas de cada bloco, criar e apagar layouts.
+   Ao ligar o modo o Painel ao lado abre com os LAYOUTS da página (js/core/painel-layout.js): nome, largura, espaços, colunas, linhas e tamanho dos blocos, criar e apagar layouts.
    Em tela pequena ele não abre sozinho (cobriria a página). Fechou o painel? O botão "⚙ Layouts" (canto de baixo, à esquerda) ou o nome do layout ("Layout: nome ⚙") abrem de novo.
 
    Como usar: nada a chamar. Basta carregar este arquivo depois de roteador.js e antes de paginas.js (que chama Roteador.iniciar).
@@ -73,7 +73,8 @@ const EditorLayout = (() => {
   function abrirLayouts() {
     if (!ed) return;
     const b = document.querySelector('.abas [data-pg="' + ed.info.id + '"]');
-    PainelLayout.abrir({ pid: ed.info.id, titulo: b ? b.textContent : ed.info.id, contar, blocos, aoAlterar: marcarAreas });
+    PainelLayout.abrir({ pid: ed.info.id, titulo: b ? b.textContent : ed.info.id, contar, blocos, aoAlterar: marcarAreas,
+      area: id => ed.info.destino.querySelector(':scope > .ct-area[data-layout="' + id + '"]'), destino: () => ed.info.destino });
   }
 
   // nome em cada área; área sem blocos ganha um espaço "Solte aqui" (e aparece, mesmo vazia, só enquanto o modo está ligado)
