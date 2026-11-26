@@ -31,7 +31,8 @@ const Containers = (() => {
   const def = id => Object.assign({}, bases[id], ajustes[id]);
   const ajustar = (id, campos) => { ajustes[id] = Object.assign({}, ajustes[id], campos); salvar(); };
 
-  // base: a definição. destino: elemento onde entra. opcoes: { antes: elemento, visivel: () => bool, herdar: objeto antigo }
+  // base: a definição. destino: elemento onde entra, OU uma função (configuração de agora) => elemento (o Roteador usa: escolhe o layout pelo campo "layout").
+  //   opcoes: { antes: elemento, visivel: () => bool, herdar: objeto antigo }
   //   herdar: configuração antiga (de antes do container existir); só vale na 1ª vez e só copia o que difere do padrão.
   function montar(base, destino, opcoes = {}) {
     if (!/^[a-z0-9_-]+$/i.test(base.id || '')) { console.error('container sem id válido (use letras, números, - ou _):', base); return null; }
@@ -49,7 +50,8 @@ const Containers = (() => {
       const inst = fabrica({ id: base.id, def: () => def(base.id), ajustar: campos => ajustar(base.id, campos), visivel,
         publicar: (nome, fn) => { (fontes[nome] = fontes[nome] || new Map()).set(base.id, fn); },
         consultar: nome => [...(fontes[nome] ? fontes[nome].values() : [])].flatMap(f => f()) });
-      destino.insertBefore(inst.raiz, opcoes.antes || null);
+      const alvo = typeof destino === 'function' ? destino(def(base.id)) : destino;
+      alvo.insertBefore(inst.raiz, opcoes.antes || null);
       vivos.push({ inst, visivel });
       if (inst.iniciar) inst.iniciar();
       return inst;

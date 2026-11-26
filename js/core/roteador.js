@@ -6,12 +6,20 @@
    - ligado: false   a página some do menu e da tela, sem apagar nada.
    - larga: true     a página usa a largura grande (a Grade usa).
    - destino         (opcional) onde os containers entram dentro da página; o padrão é ".painel-estudo".
-   - layout: { tipo, espaco }   como os containers se distribuem na página (o desenho está em css/layout.css):
-        tipo   'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'lateral' (coluna estreita de 22rem + o resto)
-        espaco multiplicador do espaço entre os blocos (1 = normal, 0.5 = metade, 2 = dobro); soma-se ao ajuste geral de Aparência
-     Em cada container: ordem (a posição dele; o padrão é a posição na lista) e ocupa (quantas colunas ocupa; o padrão é 1).
-     Abaixo de 72rem (celular e tablet) tudo vira uma coluna só, seguindo a ordem.
-     Mudou algum desses valores com Containers.ajustar(...)? Chame Roteador.reaplicar() para a tela refletir.
+   - layouts: [ { id, tipo, espaco, largura } ]   as ÁREAS da página, de cima para baixo. Cada container pertence a uma (campo "layout" dele).
+        id       nome da área (letras, números, - ou _)
+        tipo     'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'lateral' (coluna estreita de 22rem + o resto)
+        espaco   multiplicador do espaço entre os blocos DENTRO da área (1 = normal, 0.5 = metade, 2 = dobro); soma-se ao ajuste geral de Aparência
+        largura  'ampla' (o padrão: largura grande a partir de 72rem) | 'normal' (a largura do site)
+   - entre: multiplicador do espaço ENTRE uma área e a outra (1 = normal; o padrão). Soma-se ao ajuste geral de Aparência.
+   - layout: { tipo, espaco }   atalho antigo: vale como uma única área chamada "principal" (o que já funcionava continua igual).
+   - Os ajustes feitos pela tela ficam no Armazém, na chave "paginas": { idDaPagina: { layouts: [...], entre } }; valem mais que o paginas.js.
+     Container: ordem (a posição dele DENTRO da área; o padrão é a posição na lista), ocupa (quantas colunas ocupa; o padrão é 1)
+                e layout (o id da área; se faltar ou não existir, vai para a primeira).
+     Abaixo de 72rem (celular e tablet) cada área vira uma coluna só, seguindo a ordem.
+     Mudou algum desses valores com Containers.ajustar(...) ou Roteador.ajustarPagina(...)? Chame Roteador.reaplicar() (ajustarPagina já chama).
+     Cada área é um <div class="ct-area"> dentro do destino da página; se a página não tiver o destino, o roteador cria um .painel-estudo.
+     Containers do tipo "fixo" (js/containers/fixo.js) levam um bloco que já está escrito no index.html (o timer e as sessões, a grade) para dentro de uma área.
    O endereço da página é o #id (ex.: #grade). Sem endereço conhecido, abre a primeira página.
    Botões da barra da página (o [data-acoes] do index.html; nas páginas criadas aqui a barra nasce sozinha). Duas origens:
      - de um CONTAINER: ele devolve  acoes: [{ rotulo, dica, fazer }]  (nenhum container usa isso hoje);
@@ -33,7 +41,15 @@ const Roteador = (() => {
     tres:    { n: 3, colunas: 'repeat(3, minmax(0, 1fr))' },
     lateral: { n: 2, colunas: '22rem minmax(0, 1fr)' }
   };
-  const montadas = [];        // por página: { p, destino, itens: [{ inst, def, pos }] }, para o reaplicar()
+  const CHAVE = 'paginas';    // nome dos ajustes de páginas no Armazém (navegador + Sheets): { idDaPagina: { layouts, entre } }
+  const ajustesPag = Armazem.obter(CHAVE, {});
+  const salvarPag = () => Armazem.guardar(CHAVE, ajustesPag);
+  Armazem.usar(CHAVE, () => {   // chegou uma versão mais nova de outro aparelho: atualiza aqui dentro e avisa a tela (ela oferece "Recarregar")
+    const novo = Armazem.obter(CHAVE, {});
+    Object.keys(ajustesPag).forEach(k => { delete ajustesPag[k]; }); Object.assign(ajustesPag, novo);
+    Util.avisar('configuracao-recebida');
+  });
+  const montadas = [];        // por página: { p, destino, areas: Map(id -> elemento), ls: [layouts], itens: [{ inst, def, pos }] }, para o reaplicar()
   const provedores = [];      // funções que oferecem botões da PÁGINA à barra (ver acaoDePagina)
   let ligadas = [];           // páginas que existem agora, na ordem do menu
   const els = {};             // id da página -> elemento
@@ -53,26 +69,82 @@ const Roteador = (() => {
     Containers.paginaMudou();                 // avisa os containers: quem ficou visível se atualiza
   }
 
-  // escolhe o tipo de grid da página e o espaço entre os blocos (só escreve as variáveis; o desenho está em css/layout.css)
-  function aplicarLayout(p, destino) {
-    const l = Object.assign({ tipo: 'coluna', espaco: 1 }, p.layout);
-    let modelo = LAYOUTS[l.tipo];
-    if (!modelo) { console.error('página "' + p.id + '": layout desconhecido "' + l.tipo + '" (use: ' + Object.keys(LAYOUTS).join(', ') + ')'); modelo = LAYOUTS.coluna; }
-    const esp = Number(l.espaco);
-    destino.style.setProperty('--ct-colunas', modelo.colunas);
-    destino.style.setProperty('--ct-espaco', String(Number.isFinite(esp) ? Math.min(5, Math.max(0, esp)) : 1));
-    return modelo;
+  const limitar = (v, min, max, padrao) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : padrao; };
+
+  // as áreas de uma página: o que foi ajustado na tela (Armazém) vale mais que o paginas.js; sem "layouts", o "layout" antigo vira a área "principal"
+  function layoutsDe(p) {
+    const aj = ajustesPag[p.id] || {};
+    const lista = Array.isArray(aj.layouts) && aj.layouts.length ? aj.layouts : (Array.isArray(p.layouts) && p.layouts.length ? p.layouts : [Object.assign({ id: 'principal' }, p.layout)]);
+    const vistos = new Set();
+    const ok = lista.filter(l => l && ID_OK.test(l.id || '') && !vistos.has(l.id) && vistos.add(l.id));
+    return (ok.length ? ok : [{ id: 'principal' }]).map(l => Object.assign({ tipo: 'coluna', espaco: 1, largura: 'ampla' }, l));
+  }
+  const entreDe = p => { const aj = ajustesPag[p.id] || {}; return limitar(aj.entre != null ? aj.entre : p.entre, 0, 5, 1); };
+
+  function modeloDe(l, p) {
+    const m = LAYOUTS[l.tipo];
+    if (m) return m;
+    console.error('página "' + p.id + '", área "' + l.id + '": layout desconhecido "' + l.tipo + '" (use: ' + Object.keys(LAYOUTS).join(', ') + ')');
+    return LAYOUTS.coluna;
   }
 
-  // ordem e largura (em colunas) de um bloco; o que foi ajustado com Containers.ajustar vale mais que o de paginas.js
-  function posicionar(it, modelo) {
+  // cria/ordena as áreas (um <div class="ct-area"> por layout) dentro do destino; não mexe no que já está no lugar
+  function montarAreas(reg) {
+    reg.ls = layoutsDe(reg.p);
+    let anterior = null;
+    reg.ls.forEach(l => {
+      let el = reg.areas.get(l.id);
+      if (!el) { el = h('div', 'ct-area'); el.dataset.layout = l.id; reg.areas.set(l.id, el); }
+      const quer = anterior ? anterior.nextSibling : reg.destino.firstChild;
+      if (el !== quer) reg.destino.insertBefore(el, quer);
+      anterior = el;
+    });
+  }
+
+  // escolhe o tipo de grid e o espaço de cada área, e o espaço entre elas (só escreve as variáveis; o desenho está em css/layout.css)
+  function estilizar(reg) {
+    reg.ls.forEach(l => {
+      const el = reg.areas.get(l.id);
+      el.style.setProperty('--ct-colunas', modeloDe(l, reg.p).colunas);
+      el.style.setProperty('--ct-espaco', String(limitar(l.espaco, 0, 5, 1)));
+      el.classList.toggle('ampla', l.largura !== 'normal');
+    });
+    reg.destino.style.setProperty('--ct-entre', String(entreDe(reg.p)));
+  }
+
+  // ordem, largura (em colunas) e área de um bloco; o que foi ajustado com Containers.ajustar vale mais que o de paginas.js
+  function posicionar(it, reg) {
     const d = Containers.def(it.def.id), ordem = Number(d.ordem), ocupa = Math.round(Number(d.ocupa));
-    it.inst.raiz.style.order = String(Number.isFinite(ordem) ? ordem : it.pos);
-    it.inst.raiz.style.setProperty('--ct-ocupa', String(Math.min(modelo.n, Math.max(1, Number.isFinite(ocupa) ? ocupa : 1))));
+    const l = reg.ls.find(x => x.id === d.layout) || reg.ls[0], area = reg.areas.get(l.id), raiz = it.inst.raiz;
+    if (raiz.parentNode !== area) area.append(raiz);                    // outro layout: leva o bloco para lá
+    raiz.style.order = String(Number.isFinite(ordem) ? ordem : it.pos);
+    raiz.style.setProperty('--ct-ocupa', String(Math.min(modeloDe(l, reg.p).n, Math.max(1, Number.isFinite(ocupa) ? ocupa : 1))));
   }
 
-  // refaz layout, ordem e largura de todas as páginas (use depois de mudar algo com Containers.ajustar)
-  function reaplicar() { montadas.forEach(m => { const modelo = aplicarLayout(m.p, m.destino); m.itens.forEach(it => posicionar(it, modelo)); }); }
+  // área vazia some (senão o espaço entre áreas ficaria sobrando); sem espaço no topo quando a página começa por um bloco fixo (o timer)
+  function acabar(reg) {
+    reg.areas.forEach((el, id) => { if (!reg.ls.some(l => l.id === id)) { el.remove(); reg.areas.delete(id); } });
+    reg.areas.forEach(el => { el.hidden = !el.children.length; });
+    const primeira = reg.ls.map(l => reg.areas.get(l.id)).find(el => !el.hidden);
+    const ordem = it => Number(it.inst.raiz.style.order) || 0;
+    const primeiro = primeira && reg.itens.filter(it => it.inst.raiz.parentNode === primeira).sort((a, b) => ordem(a) - ordem(b))[0];
+    reg.destino.style.setProperty('--ct-topo', primeiro && primeiro.def.tipo === 'fixo' ? '0' : '1');
+  }
+
+  // refaz áreas, ordem e largura de todas as páginas (use depois de mudar algo com Containers.ajustar)
+  function reaplicar() {
+    montadas.forEach(m => { montarAreas(m); m.itens.forEach(it => posicionar(it, m)); acabar(m); estilizar(m); });
+  }
+
+  // ajusta as áreas de uma página pela tela: campos = { layouts: [...], entre: n }; guarda (navegador + Sheets) e redesenha
+  function ajustarPagina(id, campos) {
+    ajustesPag[id] = Object.assign({}, ajustesPag[id], campos); salvarPag(); reaplicar();
+  }
+  // as áreas de agora de uma página e o espaço entre elas (cópia): { layouts: [{ id, tipo, espaco, largura }], entre }
+  function layouts(id) {
+    const p = ligadas.find(x => x.id === id);
+    return p ? { layouts: layoutsDe(p).map(l => Object.assign({}, l)), entre: entreDe(p) } : null;
+  }
 
   // botões da barra da página, ou do canto do site (canto: true); ver o comentário do topo
   function colocarAcoes(el, acoes, pid) {
@@ -114,21 +186,28 @@ const Roteador = (() => {
     });
     mostrar();                                // decide a página de agora ANTES de montar os containers (eles perguntam se estão visíveis)
 
-    const destinoDe = p => els[p.id].querySelector(p.destino || '.painel-estudo');
+    // o destino dos containers; se a página não tiver, cria um (assim até as páginas fixas, como a Grade, podem ter containers)
+    const destinoDe = p => {
+      let d = els[p.id].querySelector(p.destino || '.painel-estudo');
+      if (!d && !p.destino) { d = h('div', 'painel-estudo'); els[p.id].append(d); }
+      return d;
+    };
     montadas.length = 0;
     ligadas.forEach(p => {
       const acoes = [], lista = p.containers || [];
       if (!lista.length) return;
       const destino = destinoDe(p);
       if (!destino) { console.error('página "' + p.id + '": não achei o destino ' + (p.destino || '.painel-estudo') + ' para os containers'); return; }
-      const modelo = aplicarLayout(p, destino), reg = { p, destino, itens: [] };
+      const reg = { p, destino, areas: new Map(), ls: [], itens: [] };
+      montarAreas(reg);
       lista.forEach((def, i) => {
         const velho = opcoes.herdar && opcoes.herdar[def.id];
-        const inst = Containers.montar(def, destino, { visivel: () => visivel(p.id), herdar: typeof velho === 'function' ? velho() : velho });
+        const inst = Containers.montar(def, d => (reg.areas.get(d.layout) || reg.areas.get(reg.ls[0].id)), { visivel: () => visivel(p.id), herdar: typeof velho === 'function' ? velho() : velho });
         if (!inst) return;
-        const it = { inst, def, pos: i + 1 }; reg.itens.push(it); posicionar(it, modelo);
+        const it = { inst, def, pos: i + 1 }; reg.itens.push(it); posicionar(it, reg);
         if (inst.acoes) acoes.push(...inst.acoes);
       });
+      acabar(reg); estilizar(reg);
       montadas.push(reg);
       const info = { id: p.id, el: els[p.id], destino, itens: reg.itens.map(it => ({ id: it.def.id, raiz: it.inst.raiz })) };
       provedores.forEach(fn => { try { const a = fn(info); if (a) acoes.push(a); } catch (err) { console.error('botão de página falhou (' + p.id + '):', err); } });
@@ -138,5 +217,5 @@ const Roteador = (() => {
     window.addEventListener('hashchange', mostrar);
   }
 
-  return { iniciar, visivel, atual, reaplicar, acaoDePagina };
+  return { iniciar, visivel, atual, reaplicar, acaoDePagina, ajustarPagina, layouts };
 })();

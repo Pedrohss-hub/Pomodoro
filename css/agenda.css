@@ -1,9 +1,9 @@
 /* Agenda: a lista e a cor da data pelos dias que faltam. (O grid onde ela fica está em layout.css.) */
   .acoes-topo { display: flex; align-items: center; gap: .5rem; min-width: 0; }
-  .painel-estudo .box-topo { flex-wrap: wrap; gap: .4rem .75rem; margin-bottom: .75rem; }
+  .ag-box .box-topo, .gf-box .box-topo { flex-wrap: wrap; gap: .4rem .75rem; margin-bottom: .75rem; }
   /* o status ("Atualizando…") fica numa linha própria, com altura fixa: nada se mexe quando o texto muda */
   .status-linha { min-height: 1.2rem; margin: 0 0 .7rem; font-size: .8rem; color: var(--soft); }
-  .painel-estudo .box-topo { margin-bottom: .3rem; }
+  .ag-box .box-topo, .gf-box .box-topo { margin-bottom: .3rem; }
   /* agenda apagadinha fora da vista (mesmo efeito dos gráficos) */
   .ag-box { opacity: .5; filter: saturate(.45); transition: opacity .35s ease, filter .35s ease; }
   .ag-box:hover, .ag-box:focus-within, .ag-box.em-foco { opacity: 1; filter: none; }

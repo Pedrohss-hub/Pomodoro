@@ -44,7 +44,7 @@
   body { transition: padding .2s ease; }
   @media (min-width: 70rem) {
     body.painel-aberto { padding-right: 25rem; }
-    body.painel-aberto .painel-estudo { width: min(calc(94vw - 25rem), 84rem); }
+    body.painel-aberto .ct-area.ampla { width: min(calc(94vw - 25rem), 84rem); }
   }
   @media (max-width: 69.99rem) {
     .painel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 52vh; border-radius: calc(1rem * var(--raio)) calc(1rem * var(--raio)) 0 0; }

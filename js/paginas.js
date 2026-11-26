@@ -2,25 +2,40 @@
    Cada container tem um "tipo" (arquivo em js/containers/) e a configuração dele.
    Dica: "ligado: false" desliga um container sem apagar nada. */
 const PAGINAS = [
-  { id: 'pomodoro', titulo: 'Pomodoro', fixa: 'pg-pomo', layout: { tipo: 'lateral', espaco: 1 }, containers: [
-    { id: 'agenda', tipo: 'agenda', ordem: 1, titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false },
-    { id: 'graficos', tipo: 'graficos', ordem: 2, titulo: 'Gráficos de estudo', graficos: null }   // null = lista padrão (editável no ⚙ do quadro)
-  ] },
-  { id: 'grade', titulo: 'Grade', fixa: 'pg-grade', larga: true }
+  { id: 'pomodoro', titulo: 'Pomodoro', fixa: 'pg-pomo', entre: 1,
+    layouts: [
+      { id: 'topo', tipo: 'coluna', largura: 'normal' },                  // o timer e as Sessões, na largura do site
+      { id: 'principal', tipo: 'lateral', espaco: 1, largura: 'ampla' }   // Agenda e Gráficos, em tela larga
+    ],
+    containers: [
+      { id: 'pomodoro-fixo', tipo: 'fixo', layout: 'topo', ordem: 1, titulo: 'Timer e Sessões', alvo: '#pg-pomo > .grade' },
+      { id: 'agenda', tipo: 'agenda', layout: 'principal', ordem: 1, titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false },
+      { id: 'graficos', tipo: 'graficos', layout: 'principal', ordem: 2, titulo: 'Gráficos de estudo', graficos: null }   // null = lista padrão (editável no ⚙ do quadro)
+    ] },
+  { id: 'grade', titulo: 'Grade', fixa: 'pg-grade', larga: true,
+    layouts: [ { id: 'principal', tipo: 'coluna', largura: 'normal' } ],
+    containers: [
+      { id: 'grade-fixo', tipo: 'fixo', layout: 'principal', ordem: 1, titulo: 'Planejador de grade', alvo: '#pg-grade', envolver: true }
+    ] }
 ];
 /* Páginas: "fixa" aponta para uma página escrita no index.html (módulo fixo: Pomodoro, Grade). Sem "fixa", a página é criada
    sozinha só com os containers dela. "ligado: false" esconde a página sem apagar nada. "larga: true" usa a tela larga.
 
-   GRID da página (campo "layout"):
-     tipo    'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'lateral' (coluna estreita + o resto, como o Pomodoro)
-     espaco  espaço entre os blocos: 1 = normal, 0.5 = metade, 2 = dobro (soma-se ao ajuste geral de Aparência)
+   LAYOUTS da página (campo "layouts"): cada página tem uma ou mais ÁREAS, de cima para baixo; cada container fica numa área (campo "layout" dele).
+     id       nome da área
+     tipo     'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'lateral' (coluna estreita + o resto, como o Pomodoro)
+     espaco   espaço entre os blocos DENTRO da área: 1 = normal, 0.5 = metade, 2 = dobro (soma-se ao ajuste geral de Aparência)
+     largura  'ampla' (o padrão; largura grande em tela larga) | 'normal' (a largura do site)
+   Na página: "entre" = espaço ENTRE uma área e a outra (1 = normal). Sem "layouts", o antigo  layout: { tipo, espaco }  vale como uma área só ("principal").
    Em cada container:
-     ordem   a posição dele (1, 2, 3...); se faltar, vale a posição na lista
-     ocupa   quantas colunas ele ocupa (1, 2 ou 3, até o limite do tipo); se faltar, vale 1
-   No celular e em telas estreitas tudo vira uma coluna só, seguindo a ordem.
+     layout  o id da área onde ele fica; se faltar, a primeira
+     ordem   a posição dele DENTRO da área (1, 2, 3...); se faltar, vale a posição na lista
+     ocupa   quantas colunas ele ocupa (1, 2 ou 3, até o limite do tipo da área); se faltar, vale 1
+   Container de tipo 'fixo' leva um bloco que já está no index.html para dentro de uma área (ver js/containers/fixo.js).
+   No celular e em telas estreitas cada área vira uma coluna só, seguindo a ordem.
 
    Exemplo de página nova (cole dentro da lista acima), com duas colunas e o segundo bloco ocupando as duas:
-     { id: 'financas', titulo: 'Finanças', layout: { tipo: 'duas', espaco: 1.5 }, containers: [
+     { id: 'financas', titulo: 'Finanças', layouts: [ { id: 'principal', tipo: 'duas', espaco: 1.5 } ], containers: [
          { id: 'agenda2', tipo: 'agenda', ordem: 1, titulo: 'Contas', aba: 'Contas', intervalo: 'A3:G' },
          { id: 'agenda3', tipo: 'agenda', ordem: 2, ocupa: 2, titulo: 'Metas', aba: 'Metas', intervalo: 'A3:G' } ] } */
 

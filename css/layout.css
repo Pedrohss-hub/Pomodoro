@@ -1,22 +1,28 @@
-/* Layout das páginas: o grid onde ficam os containers (.painel-estudo).
-   O desenho fica aqui; o js/core/roteador.js só preenche as variáveis de cada página e de cada bloco:
-     --ct-colunas   as colunas do grid (vem do "layout.tipo" da página, em js/paginas.js)
-     --ct-espaco    multiplicador do espaço entre os blocos (vem do "layout.espaco"); soma-se ao ajuste geral --esp de Aparência
-     --ct-ocupa     quantas colunas o bloco ocupa (vem do "ocupa" do container)
+/* Layout das páginas: a página tem uma ou mais ÁREAS (div.ct-area), uma embaixo da outra, dentro do .painel-estudo; cada área é um grid.
+   O desenho fica aqui; o js/core/roteador.js só preenche as variáveis:
+     no .painel-estudo:  --ct-entre   multiplicador do espaço ENTRE as áreas (vem de "entre" da página)
+                         --ct-topo    1 = deixa espaço no topo; 0 = a página começa por um bloco fixo (o timer), sem espaço extra
+     em cada .ct-area:   --ct-colunas as colunas do grid (vem do "tipo" do layout)
+                         --ct-espaco  multiplicador do espaço entre os blocos da área (vem do "espaco" do layout); soma-se ao --esp de Aparência
+                         classe .ampla = largura grande em tela larga (vem de "largura" do layout)
+     em cada bloco:      --ct-ocupa   quantas colunas ele ocupa (vem do "ocupa" do container)
    O "order" de cada bloco é escrito direto no elemento (vem do "ordem" do container).
-   Abaixo de 72rem (celular e tablet) tudo vira uma coluna só, na ordem: assim nenhum layout quebra em tela pequena. */
-  .painel-estudo { display: grid; grid-template-columns: minmax(0, 1fr); gap: calc(1rem * var(--esp) * var(--ct-espaco, 1)); align-items: start; margin-top: calc(3rem * var(--esp)); }
-  .painel-estudo > .box { margin: 0; min-width: 0; }
+   Abaixo de 72rem (celular e tablet) cada área vira uma coluna só, na ordem: assim nenhum layout quebra em tela pequena. */
+  .painel-estudo { display: flex; flex-direction: column; gap: calc(3rem * var(--esp) * var(--ct-entre, 1)); margin-top: calc(3rem * var(--esp) * var(--ct-topo, 1)); }
+  .ct-area { display: grid; grid-template-columns: minmax(0, 1fr); gap: calc(1rem * var(--esp) * var(--ct-espaco, 1)); align-items: start; }
+  .ct-area[hidden] { display: none; }
+  .ct-area > * { margin: 0; min-width: 0; }
   @media (min-width: 72rem) {
-    .painel-estudo { width: min(94vw, 84rem); position: relative; left: 50%; transform: translateX(-50%); grid-template-columns: var(--ct-colunas, minmax(0, 1fr)); }
-    .painel-estudo > .box { grid-column: span var(--ct-ocupa, 1); }
+    .ct-area { grid-template-columns: var(--ct-colunas, minmax(0, 1fr)); }
+    .ct-area > * { grid-column: span var(--ct-ocupa, 1); }
+    .ct-area.ampla { width: min(94vw, 84rem); position: relative; left: 50%; transform: translateX(-50%); }
   }
 
   /* Modo "Editar layout" (js/core/editor-layout.js): só existe enquanto o modo está ligado; fora dele nada disto vale.
      A alça fica por cima da borda de cima (position: absolute): não muda o tamanho de nada, então os gráficos não redesenham. */
-  .painel-estudo.el-editando > .box { position: relative; opacity: 1; filter: none; outline: 2px dashed var(--cor); outline-offset: 3px; }
-  .painel-estudo.el-editando > .box.editando { outline-style: solid; }
-  .painel-estudo.el-editando > .box.el-arrastado { opacity: .45; }
+  .painel-estudo.el-editando .ct-area > * { position: relative; opacity: 1; filter: none; outline: 2px dashed var(--cor); outline-offset: 3px; }
+  .painel-estudo.el-editando .ct-area > .editando { outline-style: solid; }
+  .painel-estudo.el-editando .ct-area > .el-arrastado { opacity: .45; }
   .el-alca { position: absolute; top: 0; left: 50%; transform: translate(-50%, -60%); z-index: 3; display: inline-flex; align-items: center; gap: .4rem; box-sizing: border-box; min-height: 2rem; max-width: calc(100% - 1.5rem); padding: 0 1rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .8rem; font-weight: 600; line-height: 1; white-space: nowrap; cursor: grab; box-shadow: 0 2px 8px rgba(35, 32, 58, .25); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .el-pontos { letter-spacing: -.2em; }
   .el-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

@@ -1,7 +1,7 @@
 /* Editor de layout: o botão "Editar layout" da barra de cada página que tem 2 ou mais containers.
    O botão fica no canto do site, ao lado da engrenagem, só com o símbolo (aria-label e dica explicam); ligado, vira um ✓ em fundo cheio.
    Ligado, cada container ganha uma alça (⋮⋮ + o título) presa à borda de cima; arraste pela alça para outra posição da fila.
-   Os outros se reorganizam na hora (só o style.order muda, o DOM não é mexido). Ao soltar, a nova ordem (1..n) é guardada
+   Os outros da MESMA área se reorganizam na hora (só o style.order muda, o DOM não é mexido). Ao soltar, a nova ordem (1..n) da área é guardada
    com Containers.ajustar (navegador + Sheets, como qualquer ajuste) e o Roteador.reaplicar() refaz a tela a partir dela.
 
    Como usar: nada a chamar. Basta carregar este arquivo depois de roteador.js e antes de paginas.js (que chama Roteador.iniciar).
@@ -9,7 +9,8 @@
    Por que assim: "Editar layout" é da PÁGINA, não de um container. O Roteador já sabe onde fica a barra (o [data-acoes] do index.html,
    ou uma barra criada por ele) e quais containers estão ligados; o editor só pede um lugar lá e não precisa saber de nada do HTML.
 
-   Regras:  - só troca a posição na fila (esquerda→direita, de cima para baixo); não cria células vazias nem linhas duplas
+   Regras:  - só troca a posição na fila da própria área (esquerda→direita, de cima para baixo); não passa um bloco para outra área
+            - não cria células vazias nem linhas duplas
             - mouse e toque (pointer events); perto da borda de cima/baixo da tela a página rola sozinha
             - Esc cancela o arrastar (volta como estava); trocar de página ou clicar no botão de novo (✓ "Concluir layout") sai do modo
             - fora do modo, nada muda: alça e classes só existem enquanto ele está ligado
@@ -24,7 +25,7 @@ const EditorLayout = (() => {
   const ICONE_EDITAR = SVG('<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>');
   const ICONE_PRONTO = SVG('<path d="M20 6 9 17l-5-5"/>');
   const DICA_EDITAR = 'Editar layout: arrastar os blocos desta página para outra posição';
-  let ed = null;             // modo ligado: { info, fila: [{ id, raiz }] na ordem visual, alcas: [] }
+  let ed = null;             // modo ligado: { info, alcas: [] }
   let arr = null;            // arrastar em andamento
 
   const nome = id => Containers.def(id).titulo || id;
@@ -34,13 +35,15 @@ const EditorLayout = (() => {
     ((parseInt(a.raiz.style.order, 10) || 0) - (parseInt(b.raiz.style.order, 10) || 0)) ||
     (a.raiz.compareDocumentPosition(b.raiz) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
 
-  const escreverOrdem = () => ed.fila.forEach((it, i) => { it.raiz.style.order = String(i + 1); });
+  // os blocos de uma área (o pai do bloco), na ordem visual de agora
+  const filaDe = area => ordemVisual(ed.info.itens.filter(it => it.raiz.parentNode === area));
+  const escreverOrdem = fila => fila.forEach((it, i) => { it.raiz.style.order = String(i + 1); });
 
   /* ---------- ligar e desligar ---------- */
   function entrar(info) {
     if (ed) sair();
     Painel.fechar();                                        // o painel de configuração fecha ao entrar
-    ed = { info, fila: ordemVisual(info.itens), alcas: [] };
+    ed = { info, alcas: [] };
     ed.info.itens.forEach(it => {
       const alca = h('span', 'el-alca'); alca.title = 'Arraste para mudar a posição';
       alca.append(h('span', 'el-pontos', '⋮⋮'), h('span', 'el-nome', nome(it.id)));
@@ -74,7 +77,8 @@ const EditorLayout = (() => {
     if (!ed || arr || ev.button > 0 || ev.isPrimary === false) return;
     ev.preventDefault();                                    // sem selecionar texto nem rolar a página (a alça tem touch-action: none)
     try { alca.setPointerCapture(ev.pointerId); } catch {}
-    arr = { it, alca, pid: ev.pointerId, x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, on: false, antes: ed.fila.slice(), ult: null, raf: 0, chip: null };
+    const area = it.raiz.parentNode, fila = filaDe(area);
+    arr = { it, alca, area, fila, pid: ev.pointerId, x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, on: false, antes: fila.slice(), ult: null, raf: 0, chip: null };
     window.addEventListener('pointermove', mover);
     window.addEventListener('pointerup', soltar); window.addEventListener('pointercancel', cancelar);
     document.addEventListener('keydown', teclar, true);
@@ -104,11 +108,11 @@ const EditorLayout = (() => {
     const px = arr.x + scrollX, py = arr.y + scrollY;
     if (arr.ult && Math.hypot(px - arr.ult.x, py - arr.ult.y) < HISTERESE) return;
     const el = document.elementFromPoint(arr.x, arr.y);
-    const alvo = el && ed.fila.find(it => it !== arr.it && it.raiz.contains(el));
+    const alvo = el && arr.fila.find(it => it !== arr.it && it.raiz.contains(el));          // só troca com quem é da mesma área
     if (!alvo) return;
-    const de = ed.fila.indexOf(arr.it), para = ed.fila.indexOf(alvo);     // vindo de antes, fica depois do alvo; vindo de depois, fica antes
-    ed.fila.splice(de, 1); ed.fila.splice(para, 0, arr.it);
-    escreverOrdem();
+    const de = arr.fila.indexOf(arr.it), para = arr.fila.indexOf(alvo);   // vindo de antes, fica depois do alvo; vindo de depois, fica antes
+    arr.fila.splice(de, 1); arr.fila.splice(para, 0, arr.it);
+    escreverOrdem(arr.fila);
     arr.ult = { x: px, y: py };
   }
 
@@ -141,10 +145,10 @@ const EditorLayout = (() => {
     if (a.chip) a.chip.remove();
     a.it.raiz.classList.remove('el-arrastado'); document.body.classList.remove('el-arrastando');
     if (!a.on) return;
-    const mudou = ed.fila.some((it, i) => it !== a.antes[i]);
-    if (!guardar) { ed.fila = a.antes; if (mudou) Roteador.reaplicar(); return; }    // cancelou: volta como estava (reaplicar relê a configuração)
+    const mudou = a.fila.some((it, i) => it !== a.antes[i]);
+    if (!guardar) { if (mudou) Roteador.reaplicar(); return; }                       // cancelou: volta como estava (reaplicar relê a configuração)
     if (!mudou) return;                                     // soltou onde estava: nada a gravar
-    ed.fila.forEach((it, i) => Containers.ajustar(it.id, { ordem: i + 1 }));        // 1..n de todos os containers da página
+    a.fila.forEach((it, i) => Containers.ajustar(it.id, { ordem: i + 1 }));          // 1..n dos containers da área
     Roteador.reaplicar();
   }
 
