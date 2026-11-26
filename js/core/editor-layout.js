@@ -24,7 +24,6 @@ const EditorLayout = (() => {
   const h = Util.h;
   const MOVE_MIN = 5;      // px que o ponteiro precisa andar para começar a arrastar (evita arrastar sem querer)
   const ZONA = 72;         // px da borda de cima/baixo da tela onde a página rola sozinha
-  const HISTERESE = 12;    // px (na página) que o ponteiro anda entre uma troca e outra: evita ficar trocando de ida e volta
   const botoes = new Map();  // id da página -> botão do canto
   const SVG = c => '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + c + '</svg>';
   const ICONE_EDITAR = SVG('<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>');
@@ -73,7 +72,7 @@ const EditorLayout = (() => {
   function abrirLayouts() {
     if (!ed) return;
     const b = document.querySelector('.abas [data-pg="' + ed.info.id + '"]');
-    PainelLayout.abrir({ pid: ed.info.id, titulo: b ? b.textContent : ed.info.id, contar, blocos, aoAlterar: marcarAreas,
+    PainelLayout.abrir({ pid: ed.info.id, titulo: b ? b.textContent : ed.info.id, contar, blocos, aoAlterar: marcarAreas, bloco: id => { const it = ed.info.itens.find(x => x.id === id); return it ? it.raiz : null; },
       area: id => ed.info.destino.querySelector(':scope > .ct-area[data-layout="' + id + '"]'), destino: () => ed.info.destino });
   }
 
@@ -125,7 +124,7 @@ const EditorLayout = (() => {
     ev.preventDefault();                                    // sem selecionar texto nem rolar a página (a alça tem touch-action: none)
     try { alca.setPointerCapture(ev.pointerId); } catch {}
     const area = it.raiz.parentNode, fila = filaDe(area);
-    arr = { it, alca, area, fila, pid: ev.pointerId, x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, on: false, antes: fila.slice(), ult: null, raf: 0, chip: null, alvo: null, marca: null };
+    arr = { it, alca, area, fila, pid: ev.pointerId, x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, on: false, antes: fila.slice(), raf: 0, chip: null, alvo: null, marca: null };
     window.addEventListener('pointermove', mover);
     window.addEventListener('pointerup', soltar); window.addEventListener('pointercancel', cancelar);
     document.addEventListener('keydown', teclar, true);
@@ -190,15 +189,14 @@ const EditorLayout = (() => {
     if (!area) { if (arr.alvo) alvoFora(arr.alvo.area); return; }       // no espaço entre áreas: mantém o último alvo
     if (arr.alvo) limparAlvo(arr);                                      // voltou para a própria área
     if (EditorGrade.larga()) { EditorGrade.sobre(arr.x, arr.y); return; }  // tela larga: escolhe a célula (o editor-grade mostra a marca)
-    const px = arr.x + scrollX, py = arr.y + scrollY;
-    if (arr.ult && Math.hypot(px - arr.ult.x, py - arr.ult.y) < HISTERESE) return;
     const el = document.elementFromPoint(arr.x, arr.y);
     const alvo = el && arr.fila.find(it => it !== arr.it && it.raiz.contains(el));          // só troca com quem é da mesma área
     if (!alvo) return;
-    const de = arr.fila.indexOf(arr.it), para = arr.fila.indexOf(alvo);   // vindo de antes, fica depois do alvo; vindo de depois, fica antes
+    const de = arr.fila.indexOf(arr.it), para = arr.fila.indexOf(alvo);
+    const r = alvo.raiz.getBoundingClientRect(), meio = r.top + r.height / 2;
+    if (de < para ? arr.y < meio : arr.y > meio) return;     // só troca depois de passar do MEIO do alvo: depois da troca o ponteiro nunca está do lado que desfaria (sem vai-e-volta, nem na rolagem automática)
     arr.fila.splice(de, 1); arr.fila.splice(para, 0, arr.it);
     escreverOrdem(arr.fila);
-    arr.ult = { x: px, y: py };
   }
 
   const velocidade = y => {

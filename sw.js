@@ -1,6 +1,6 @@
 /* Service worker do Painel de Estudos
    Para forçar a atualização do app em todos os aparelhos, mude o número da VERSAO. */
-const VERSAO = 'v22';
+const VERSAO = 'v23';
 const CACHE = 'painel-estudos-' + VERSAO;
 
 const ARQUIVOS = [
@@ -13,7 +13,7 @@ const ARQUIVOS = [
   './css/grade.css?v=1',
   './css/planilha.css?v=5',
   './css/graficos.css?v=5',
-  './css/layout.css?v=10',
+  './css/layout.css?v=11',
   './css/agenda.css?v=7',
   './css/calendario.css?v=2',
   './css/aparencia.css?v=3',
@@ -28,11 +28,11 @@ const ARQUIVOS = [
   './js/containers/graficos.js?v=7',
   './js/core/armazem.js?v=1',
   './js/core/containers.js?v=6',
-  './js/core/roteador.js?v=11',
+  './js/core/roteador.js?v=12',
   './js/core/controles.js?v=1',
-  './js/core/painel-layout.js?v=7',
+  './js/core/painel-layout.js?v=8',
   './js/core/editor-grade.js?v=3',
-  './js/core/editor-layout.js?v=11',
+  './js/core/editor-layout.js?v=12',
   './js/containers/fixo.js?v=1',
   './js/containers/agenda.js?v=6',
   './js/containers/calendario.js?v=2',

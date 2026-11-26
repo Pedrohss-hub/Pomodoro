@@ -152,6 +152,8 @@ const Roteador = (() => {
     const l = reg.ls.find(x => x.id === d.layout) || reg.ls[0], area = reg.areas.get(l.id), raiz = it.inst.raiz;
     if (raiz.parentNode !== area) area.append(raiz);                    // outro layout: leva o bloco para lá
     raiz.style.order = String(Number.isFinite(ordem) ? ordem : it.pos);
+    const am = /^\d+(\.\d+)?(rem|px)$/.exec(String(d.alturaMin || ''));          // altura mínima do bloco ('12rem' | '200px'); sem ela, o bloco tem a altura do conteúdo
+    if (am) raiz.style.setProperty('--ct-alt-min', d.alturaMin); else raiz.style.removeProperty('--ct-alt-min');
     const n = nColunas(l, reg.p), col = livre(l) ? inteiro(d.col, 1, n) : null;
     raiz.style.setProperty('--ct-ocupa', String(Math.min(col ? n - col + 1 : n, Math.max(1, Number.isFinite(ocupa) ? ocupa : 1))));
     if (livre(l)) {                                                    // grade livre: onde começa e quantas linhas ocupa (só nela; no modo antigo nada disto é escrito)

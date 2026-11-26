@@ -7,12 +7,13 @@
                          --ct-espaco  multiplicador do espaço entre os blocos da área (vem do "espaco" do layout); soma-se ao --esp de Aparência
                          classe .ampla = largura grande em tela larga (vem de "largura" do layout)
      em cada bloco:      --ct-ocupa   quantas colunas ele ocupa (vem do "ocupa" do container)
+                         --ct-alt-min altura mínima do bloco (vem de "alturaMin" do container: '12rem' ou '200px'; vale em qualquer largura de tela)
    O "order" de cada bloco é escrito direto no elemento (vem do "ordem" do container).
    Abaixo de 72rem (celular e tablet) cada área vira uma coluna só, na ordem: assim nenhum layout quebra em tela pequena. */
   .painel-estudo { display: flex; flex-direction: column; gap: calc(3rem * var(--esp) * var(--ct-entre, 1)); margin-top: calc(3rem * var(--esp) * var(--ct-topo, 1)); }
   .ct-area { display: grid; grid-template-columns: minmax(0, 1fr); gap: calc(1rem * var(--esp) * var(--ct-espaco, 1)); align-items: start; }
   .ct-area[hidden] { display: none; }
-  .ct-area > * { margin: 0; min-width: 0; }
+  .ct-area > * { margin: 0; min-width: 0; min-height: var(--ct-alt-min, 0); }
   @media (min-width: 72rem) {
     .ct-area { grid-template-columns: var(--ct-colunas, minmax(0, 1fr)); }
     .ct-area > * { grid-column: span var(--ct-ocupa, 1); }
@@ -81,4 +82,14 @@
     .el-redim.d { right: -3px; top: 30%; bottom: 30%; width: 6px; cursor: ew-resize; }
     .el-redim.b { bottom: -3px; left: 30%; right: 30%; height: 6px; cursor: ns-resize; }
     .el-redim.c { right: -5px; bottom: -5px; width: 14px; height: 14px; cursor: nwse-resize; }
+  }
+
+  /* toque (tablet em tela larga): alças e divisórias maiores, para o dedo acertar */
+  @media (min-width: 72rem) and (pointer: coarse) {
+    .el-divisor.v { width: 28px; margin-left: -8px; } .el-divisor.v::after { left: 13px; }
+    .el-divisor.h { height: 28px; margin-top: -8px; } .el-divisor.h::after { top: 13px; }
+    .el-redim.d { right: -10px; width: 20px; }
+    .el-redim.b { bottom: -10px; height: 20px; }
+    .el-redim.c { right: -12px; bottom: -12px; width: 28px; height: 28px; }
+    .el-mais { width: 2.4rem; height: 2.4rem; }
   }

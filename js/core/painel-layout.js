@@ -9,13 +9,14 @@
      Largura de cada coluna  um campo por coluna, com unidade: fr (parte do que sobra), rem, px ou %
      Altura de cada linha    um campo por linha: auto (a do conteúdo), fr, rem ou px (rem e px = altura MÍNIMA)
      Tamanho de cada bloco   seletor de células: quantas colunas e linhas o bloco ocupa (nunca encosta em outro bloco)
+     Altura mínima do bloco  um campo por bloco, com unidade: auto (a do conteúdo), rem ou px; vale em qualquer largura de tela (guarda "alturaMin" no container)
      Posição na página       sobe ou desce o layout (só com 2 ou mais)
      Apagar este layout      só aparece se ele estiver vazio; para esvaziar, arraste os blocos para outro layout
    E, com 2 ou mais layouts, "Espaço entre os layouts" (o vão entre um layout e o outro).
    A grade (colunas, linhas e blocos) só se edita em tela larga (>= 72 rem), como o editor visual; em tela estreita o painel mostra só nome, largura e espaços.
    Layout antigo (tipo/pilha/coluna1) aparece aqui já convertido em colunas e linhas; ao mexer nele ele vira grade livre (o que estava guardado não é apagado).
    O botão "+ Novo layout" (no rodapé) cria um layout vazio no fim da página; arraste um bloco para dentro dele.
-   Só quem o chama é o editor de layout:  PainelLayout.abrir({ pid, titulo, contar(idDoLayout) => nº de blocos, blocos(idDoLayout) => [{ id, titulo }],
+   Só quem o chama é o editor de layout:  PainelLayout.abrir({ pid, titulo, contar(idDoLayout) => nº de blocos, blocos(idDoLayout) => [{ id, titulo }], bloco(idDoBloco) => elemento do bloco,
                                             area(idDoLayout) => elemento do layout, destino() => elemento da página, aoAlterar() })
                                           PainelLayout.atualizar()  redesenha o painel (use depois de mover blocos)
    Carregue depois de painel.js, controles.js e roteador.js (e o editor-grade.js tem de estar carregado até a hora de abrir). Não guarda nada por conta própria:
@@ -26,6 +27,7 @@ const PainelLayout = (() => {
   const MAX = { c: 12, l: 24 };
   const UN_COLUNA = { fr: { min: .1, max: 20, passo: .5, slider: [.5, 6] }, rem: { min: 2, max: 80, passo: 1, slider: [4, 60] }, px: { min: 40, max: 2000, passo: 10, slider: [50, 800] }, '%': { min: 5, max: 100, passo: 5, slider: [5, 100] } };
   const UN_LINHA = { auto: { auto: true }, fr: UN_COLUNA.fr, rem: { min: 1, max: 80, passo: 1, slider: [2, 40] }, px: { min: 20, max: 2000, passo: 10, slider: [30, 600] } };
+  const UN_ALTURA = { auto: { auto: true }, rem: { min: 2, max: 100, passo: 1, slider: [4, 60] }, px: { min: 30, max: 2000, passo: 10, slider: [50, 800] } };
   const UN_ESPACO = { '×': { min: 0, max: 5, passo: .25, slider: [0, 3] } };
   // miniaturas de estrutura: lista de colunas em fr (só atalho: depois dá para ajustar cada coluna)
   const ESTRUTURAS = [[1], [1, 1], [1, 2], [2, 1], [1, 3], [3, 1], [1, 2, 1], [1, 1, 1], [1, 1, 1, 1]];
@@ -112,6 +114,21 @@ const PainelLayout = (() => {
     return caixa;
   }
 
+  // altura mínima de cada bloco (qualquer largura de tela); auto = sem mínimo
+  function alturasUI(l) {
+    const caixa = h('div', 'pl-grade'), raiz = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    ctx.blocos(l.id).forEach(b => {
+      const el = () => ctx.bloco && ctx.bloco(b.id), alt = () => { const e = el(); return e ? e.getBoundingClientRect().height : 0; };
+      const por = v => { const e = el(); if (!e) return; if (v.u === 'auto') e.style.removeProperty('--ct-alt-min'); else e.style.setProperty('--ct-alt-min', v.n + v.u); };
+      caixa.append(Controles.medida({ rotulo: b.titulo || b.id, id: 'alt:' + l.id + ':' + b.id, valor: ler(Containers.def(b.id).alturaMin), unidades: UN_ALTURA,
+        converter: (de, para) => { const px = de.u === 'rem' ? de.n * raiz : de.u === 'px' ? de.n : alt(); return para === 'rem' ? px / raiz : px; },
+        aoPrevia: por,
+        aoConfirmar: v => { por(v); Containers.ajustar(b.id, { alturaMin: v.u === 'auto' ? '' : v.n + v.u }); ctx.aoAlterar(); },
+        info: () => alt() ? '= ' + Math.round(alt()) + ' px' : '' }));
+    });
+    return caixa;
+  }
+
   // o espaço entre os blocos de um layout (ou entre os layouts, se id for null): × o normal; mostra o espaço real em px
   function espacoUI(rotulo, valor, onde, aoGuardar, previa, id) {
     return Controles.medida({ rotulo, id, valor: { n: Number(valor), u: '×' }, unidades: UN_ESPACO,
@@ -129,6 +146,7 @@ const PainelLayout = (() => {
       dentro.push({ tipo: 'custom', montar: () => espacoUI('Espaço entre os blocos', l.espaco, () => ctx.area(l.id),
         v => mudar(l.id, { espaco: v }), v => { const a = ctx.area(l.id); if (a) a.style.setProperty('--ct-espaco', String(v)); }, 'esp:' + l.id) });
       dentro.push({ tipo: 'custom', montar: () => gradeUI(l) });
+      if (q > 0) dentro.push({ tipo: 'custom', montar: () => { const c = h('div', 'pl-grade'); c.append(h('h4', 'pn-sub', 'Altura mínima de cada bloco'), alturasUI(l)); return c; } });
       if (n > 1) dentro.push({ chave: 'pos:' + l.id, rotulo: 'Posição na página', tipo: 'selecao', numero: true, recarrega: true,
         opcoes: layouts.map((_, k) => [k + 1, (k + 1) + 'º' + (k === 0 ? ' (em cima)' : k === n - 1 ? ' (embaixo)' : '')]) });
       if (n > 1 && q === 0) dentro.push({ tipo: 'botao', rotulo: 'Apagar este layout', perigo: true, acao: () => apagar(l.id) });
