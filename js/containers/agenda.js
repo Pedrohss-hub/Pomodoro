@@ -166,9 +166,9 @@ Containers.registrar('agenda', ctx => {
     const x = achar(li.dataset.linha); if (!x) return;
     if (!ev.target.closest('.ag-chk')) { abrir(x); return; }
     if (!podeEditar()) return;
-    x.feita = !x.feita; salvarCache(); render();
+    x.feita = !x.feita; salvarCache(); render(); avisarMudou();       // avisa já: o gráfico remarca os dias "Imp"
     try { await gravar(escritas(x.linha, { st: x.feita })); est.erro = ''; }
-    catch (err) { x.feita = !x.feita; est.erro = 'não consegui gravar: ' + err.message; render(); }
+    catch (err) { x.feita = !x.feita; est.erro = 'não consegui gravar: ' + err.message; salvarCache(); render(); avisarMudou(); }
     rodape();
   });
   lista.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target.classList.contains('ag-item')) { const x = achar(ev.target.dataset.linha); if (x) abrir(x); } });

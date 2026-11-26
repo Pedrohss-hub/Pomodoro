@@ -1,5 +1,6 @@
 /* Tipo de container "graficos": gráficos de barras, linhas e histograma lidos de intervalos da planilha, desenhados em SVG,
    com período anterior apagado, dia da semana, marcas de itens "Imp" da agenda, cache e janela ampliada (botão Gráficos do topo).
+   Em cada gráfico de linhas, "frente" ('liq' padrão | 'per') escolhe a linha desenhada por cima.
    Configuração (em js/paginas.js): { titulo, graficos: [lista] } (null = lista padrão; o ⚙ do quadro edita a lista). */
 Containers.registrar('graficos', ctx => {
   const intervaloInicio = () => { const p = cfg.planilha, c = String(p.campos.inicio || 'B').toUpperCase(); return c + p.linhaInicial + ':' + c; };
@@ -30,9 +31,9 @@ Containers.registrar('graficos', ctx => {
     return d && !isNaN(d) ? d : null;
   }
   const diaSem = l => { const d = dataLinha(l); return d ? DIAS[d.getDay()] : null; };
-  // itens da categoria "Imp" da agenda que caem num dia (nome + hora)
+  // itens PENDENTES da categoria "Imp" da agenda que caem num dia (nome + hora); concluídos não marcam
   const impDoDia = d => ctx.consultar('agenda-itens')
-    .filter(x => /^imp/i.test(x.cat) && x.t[0] === d.getFullYear() && x.t[1] === d.getMonth() && x.t[2] === d.getDate())
+    .filter(x => !x.feita && /^imp/i.test(x.cat) && x.t[0] === d.getFullYear() && x.t[1] === d.getMonth() && x.t[2] === d.getDate())
     .map(x => x.desc + (x.hora ? ' · ' + x.hora : ''));
   const h = Util.h;
   // Hora ou duração vira horas (número); número puro segue a opção "formato dos tempos" das Configurações da planilha (cfg.planilha)
@@ -54,7 +55,7 @@ Containers.registrar('graficos', ctx => {
   const passoN = max => [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000].find(p => max / p <= 5) || 2000;
 
   /* ---------- desenho do gráfico (SVG feito à mão, sem bibliotecas) ---------- */
-  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h', dicas, marcas, hoje) {
+  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h', dicas, marcas, hoje, frente) {
     const velho = plot.querySelector('svg'); if (velho) velho.remove();
     tip.hidden = true;
     const W = Math.max(260, plot.clientWidth), H = 240, ML = 46, MR = 10, MT = 12, MB = 30;
@@ -90,7 +91,9 @@ Containers.registrar('graficos', ctx => {
 
     // o período anterior (fundo) é desenhado primeiro, apagado
     if (tipo === 'linhas') {
-      vis.slice().sort((x, y2) => (y2.fundo ? 1 : 0) - (x.fundo ? 1 : 0)).forEach(s => {
+      // ordem de desenho: período anterior (fundo), depois as demais, e por último a série escolhida em "frente"
+      const camada = s => s.fundo ? 0 : s.chave === frente ? 2 : 1;
+      vis.slice().sort((x, y2) => camada(x) - camada(y2)).forEach(s => {
         const pts = s.valores.map((v, i) => [ML + gw * (i + .5), y(v)]);
         const fx = s.fundo ? { 'stroke-dasharray': '5 4', opacity: 0.45 } : {};
         if (pts.length > 1) svg.append(sv('path', Object.assign({ d: pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' '), fill: 'none', stroke: s.cor, 'stroke-width': s.fundo ? 2 : 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, fx)));
@@ -148,7 +151,7 @@ Containers.registrar('graficos', ctx => {
     let ultimo = null, larg = 0;
 
     const aviso = (t, erro) => { msg.textContent = t; msg.className = 'gf-msg' + (erro ? ' erro' : ''); msg.hidden = !t; };
-    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid, ultimo.dicas, ultimo.marcas, ultimo.hoje); } };
+    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid, ultimo.dicas, ultimo.marcas, ultimo.hoje, ultimo.frente); } };
 
     // histograma: quantas vezes você começou a estudar em cada faixa de horário do dia
     function histograma(d) {
@@ -188,7 +191,7 @@ Containers.registrar('graficos', ctx => {
       if (ant) series.push({ nome: 'Anterior', chave: 'ant', cor: CORES.liq, fundo: true, valores: ant, oculta: ocultas.has('ant') });
       const marcas = g.imp ? linhas.map(l => { const d = dataLinha(l), n = d ? impDoDia(d) : []; return n.length ? n : null; }) : null;
       const hj = new Date(), hoje = linhas.findIndex(l => { const d = dataLinha(l); return d && d.getFullYear() === hj.getFullYear() && d.getMonth() === hj.getMonth() && d.getDate() === hj.getDate(); });
-      ultimo = { rot, series, dicas, marcas, hoje: hoje >= 0 ? hoje : null };
+      ultimo = { rot, series, dicas, marcas, hoje: hoje >= 0 ? hoje : null, frente: g.frente || 'liq' };
       const soma = a => a.reduce((s, x) => s + x, 0);
       sub.textContent = 'Líquido ' + horaTxt(soma(liq)) + (temPer ? ' · Perdido ' + horaTxt(soma(per)) : ' · sem coluna de perdido (use 3 colunas)') + (temPer && d.linhas.every(l => l[2] == null) ? ' · não entendi o formato do perdido' : '') + (ant ? ' · Anterior ' + horaTxt(soma(ant)) : '');
       series.forEach(s => {
@@ -309,13 +312,14 @@ Containers.registrar('graficos', ctx => {
     { chave: 'anterior', rotulo: 'Período anterior (opcional)', tipo: 'intervalo', opcional: true, mostrarSe: nTipo, dica: 'Mesmo formato; aparece apagado atrás. Ex.: Q26:S33' },
     { chave: 'diaSemana', rotulo: 'Mostrar o dia da semana (Seg, Ter…) no eixo', tipo: 'caixa', mostrarSe: nTipo, dica: 'A primeira coluna precisa ser uma data.' },
     { chave: 'imp', rotulo: 'Marcar os dias com itens "Imp" da agenda', tipo: 'caixa', mostrarSe: nTipo },
+    { chave: 'frente', rotulo: 'Linha na frente', tipo: 'selecao', mostrarSe: v => v.tipo === 'linhas', opcoes: [['liq', 'Tempo líquido'], ['per', 'Perdido']], dica: 'Qual linha fica por cima quando as duas se cruzam.' },
     { chave: 'passo', rotulo: 'Faixa do histograma', tipo: 'selecao', numero: true, mostrarSe: v => v.tipo === 'histograma', opcoes: [[60, '1 hora'], [30, '30 minutos']] },
     { chave: 'ativo', rotulo: 'Mostrar este gráfico', tipo: 'caixa' }
   ];
   function editar(g) {
     editandoId = g.id; marcarEditando();
     Painel.abrir({
-      id: 'g:' + g.id, titulo: g.titulo || 'Gráfico', subtitulo: 'Gráfico · as mudanças valem na hora', campos: CAMPOS_G, valores: () => Object.assign({ passo: 60 }, g),
+      id: 'g:' + g.id, titulo: g.titulo || 'Gráfico', subtitulo: 'Gráfico · as mudanças valem na hora', campos: CAMPOS_G, valores: () => Object.assign({ passo: 60, frente: 'liq' }, g),
       aoMudar(chave, valor) {
         g[chave] = valor;
         if (chave === 'tipo' && valor === 'histograma') { g.aba = cfg.planilha.aba; g.intervalo = intervaloInicio(); g.passo = g.passo || 60; }
