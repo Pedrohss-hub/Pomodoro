@@ -17,6 +17,7 @@
    Tipos de campo:
      texto | numero (min, max) | caixa | selecao (opcoes: [[valor, rótulo]], numero: true)
      intervalo (células tipo A3:G; opcional: true)      aba (nome da aba, com sugestões da planilha)      sugestao (sugestoes: () => [textos])
+     titulo (só um subtítulo para separar grupos; rotulo, dica)      botao (rotulo, perigo, acao: um botão no meio dos campos)
    Opções comuns: dica, mostrarSe(valores), recarrega (redesenha os campos ao mudar), ao: 'input' | 'change' (quando avisar) */
 const Painel = (() => {
   const h = Util.h;
@@ -37,6 +38,12 @@ const Painel = (() => {
 
   function campo(c, v) {
     const caixa = h('div', 'pn-campo');
+    if (c.tipo === 'titulo' || c.tipo === 'botao') {                    // não guardam valor: só texto ou botão
+      if (c.tipo === 'titulo') caixa.append(h('h3', 'pn-secao', c.rotulo));
+      else { const b = h('button', 'painel-btn' + (c.perigo ? ' perigo' : ''), c.rotulo); b.type = 'button'; b.onclick = c.acao; caixa.append(b); }
+      if (c.dica) caixa.append(h('p', 'pn-dica', c.dica));
+      return caixa;
+    }
     const dica = c.dica ? h('p', 'pn-dica', c.dica) : null, erro = h('p', 'pn-erro'); erro.hidden = true;
     const aplicar = valor => { atual.aoMudar(c.chave, valor); if (c.recarrega) desenhar(); };
     let ctl;

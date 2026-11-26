@@ -6,6 +6,8 @@
    com Containers.ajustar (navegador + Sheets, como qualquer ajuste) e o Roteador.reaplicar() refaz a tela a partir dela.
    Para OUTRA área: ao entrar nela, a área ganha um contorno e uma barra mostra onde o bloco vai ficar; o bloco só muda de lugar ao soltar
    (grava "layout" e "ordem" dele e renumera as duas áreas). Esc cancela.
+   Ao ligar o modo o Painel ao lado abre com os LAYOUTS da página (js/core/painel-layout.js): tipo de grade, espaços, criar e apagar layouts.
+   Em tela pequena ele não abre sozinho (cobriria a página): toque no nome do layout ("Layout: topo ⚙") para abrir.
 
    Como usar: nada a chamar. Basta carregar este arquivo depois de roteador.js e antes de paginas.js (que chama Roteador.iniciar).
    Ele se registra com Roteador.acaoDePagina e o botão aparece sozinho, na barra da página, só onde há 2+ containers ligados.
@@ -58,6 +60,14 @@ const EditorLayout = (() => {
     info.destino.classList.add('el-editando');
     marcarAreas();
     marcarBotao(info.id, true);
+    if (matchMedia('(min-width: 72rem)').matches) abrirLayouts();
+  }
+
+  const contar = id => ed.info.itens.filter(it => it.raiz.parentNode && it.raiz.parentNode.dataset.layout === id).length;
+  function abrirLayouts() {
+    if (!ed) return;
+    const b = document.querySelector('.abas [data-pg="' + ed.info.id + '"]');
+    PainelLayout.abrir({ pid: ed.info.id, titulo: b ? b.textContent : ed.info.id, contar, aoAlterar: marcarAreas });
   }
 
   // nome em cada área; área sem blocos ganha um espaço "Solte aqui" (e aparece, mesmo vazia, só enquanto o modo está ligado)
@@ -65,7 +75,10 @@ const EditorLayout = (() => {
     if (!ed) return;
     ed.info.destino.querySelectorAll(AREAS).forEach(area => {
       area.hidden = false;
-      if (!area.querySelector(':scope > .el-area-nome')) area.append(h('span', 'el-area-nome', 'Layout: ' + area.dataset.layout));
+      if (!area.querySelector(':scope > .el-area-nome')) {
+        const nm = h('button', 'el-area-nome', 'Layout: ' + area.dataset.layout + ' ⚙'); nm.type = 'button'; nm.title = 'Ajustar os layouts desta página';
+        nm.onclick = abrirLayouts; area.append(nm);
+      }
       const vazia = !ed.info.itens.some(it => it.raiz.parentNode === area), v = area.querySelector(':scope > .el-vazio');
       if (vazia && !v) area.append(h('div', 'el-vazio', 'Solte aqui'));
       else if (!vazia && v) v.remove();
@@ -76,6 +89,7 @@ const EditorLayout = (() => {
     if (!ed) return;
     if (arr) terminar(false);
     ed.alcas.forEach(a => a.remove());
+    PainelLayout.fechar();
     let vazia = false;
     ed.info.destino.querySelectorAll(AREAS).forEach(area => {
       if (area.querySelector(':scope > .el-vazio')) vazia = true;
@@ -220,7 +234,7 @@ const EditorLayout = (() => {
     nova.splice(alvo.idx, 0, a.it);
     nova.forEach((it, i) => Containers.ajustar(it.id, it === a.it ? { layout: id, ordem: i + 1 } : { ordem: i + 1 }));
     a.fila.filter(it => it !== a.it).forEach((it, i) => Containers.ajustar(it.id, { ordem: i + 1 }));
-    Roteador.reaplicar(); marcarAreas();
+    Roteador.reaplicar(); marcarAreas(); PainelLayout.atualizar();
   }
 
   /* ---------- o botão da barra ---------- */

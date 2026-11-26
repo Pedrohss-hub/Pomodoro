@@ -50,3 +50,6 @@
     .painel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 52vh; border-radius: calc(1rem * var(--raio)) calc(1rem * var(--raio)) 0 0; }
     body.painel-aberto { padding-bottom: 54vh; }
   }
+  /* subtítulo que separa grupos de campos no Painel (campo tipo "titulo") */
+  .pn-secao { margin: 0; padding-top: .8rem; border-top: 1px solid var(--line); font-size: .85rem; font-weight: 600; }
+  .painel-corpo > :first-child .pn-secao { padding-top: 0; border-top: 0; }

@@ -57,6 +57,6 @@ Roteador.iniciar(PAGINAS, { herdar: {
   };
   $('#ct-limpar').onclick = () => {
     if (!confirm('Apagar as mudanças feitas neste aparelho e usar a configuração de js/paginas.js? A página será recarregada.')) return;
-    Containers.limparAjustes(); location.reload();
+    Containers.limparAjustes(); Roteador.limparAjustes(); location.reload();
   };
 })();

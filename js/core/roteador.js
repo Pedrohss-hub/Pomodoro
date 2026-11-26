@@ -18,6 +18,7 @@
                 e layout (o id da área; se faltar ou não existir, vai para a primeira).
      Abaixo de 72rem (celular e tablet) cada área vira uma coluna só, seguindo a ordem.
      Mudou algum desses valores com Containers.ajustar(...) ou Roteador.ajustarPagina(...)? Chame Roteador.reaplicar() (ajustarPagina já chama).
+     Roteador.layouts(id) devolve as áreas de agora ({ layouts, entre }); Roteador.limparAjustes() apaga os ajustes feitos pela tela. A tela que mexe nisso é js/core/painel-layout.js.
      Cada área é um <div class="ct-area"> dentro do destino da página; se a página não tiver o destino, o roteador cria um .painel-estudo.
      Containers do tipo "fixo" (js/containers/fixo.js) levam um bloco que já está escrito no index.html (o timer e as sessões, a grade) para dentro de uma área.
    O endereço da página é o #id (ex.: #grade). Sem endereço conhecido, abre a primeira página.
@@ -146,6 +147,9 @@ const Roteador = (() => {
     return p ? { layouts: layoutsDe(p).map(l => Object.assign({}, l)), entre: entreDe(p) } : null;
   }
 
+  // apaga os ajustes de layout feitos pela tela (volta ao que está em js/paginas.js); quem chama recarrega a página
+  function limparAjustes() { Object.keys(ajustesPag).forEach(k => { delete ajustesPag[k]; }); salvarPag(); }
+
   // botões da barra da página, ou do canto do site (canto: true); ver o comentário do topo
   function colocarAcoes(el, acoes, pid) {
     if (!acoes.length) return;
@@ -217,5 +221,5 @@ const Roteador = (() => {
     window.addEventListener('hashchange', mostrar);
   }
 
-  return { iniciar, visivel, atual, reaplicar, acaoDePagina, ajustarPagina, layouts };
+  return { iniciar, visivel, atual, reaplicar, acaoDePagina, ajustarPagina, layouts, limparAjustes };
 })();
