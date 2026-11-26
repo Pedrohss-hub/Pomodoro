@@ -40,13 +40,15 @@ const PainelLayout = (() => {
       lista.push({ tipo: 'titulo', rotulo: 'Layout: ' + nomeDe(l) + ' · ' + (q === 1 ? '1 bloco' : q + ' blocos'),
         dica: n > 1 && q > 0 ? 'Para apagar este layout, arraste os blocos dele para outro.' : '' });
       lista.push({ chave: 'nome:' + l.id, rotulo: 'Nome do layout', tipo: 'texto', ao: 'change', recarrega: true });
-      lista.push({ chave: 'tipo:' + l.id, rotulo: 'Grade', tipo: 'selecao', opcoes: GRADES, recarrega: true });
+      const livre = Array.isArray(l.colunas) && l.colunas.length > 0;
+      if (livre) lista.push({ tipo: 'titulo', rotulo: 'Grade livre: ' + l.colunas.length + (l.colunas.length === 1 ? ' coluna' : ' colunas'), dica: 'Colunas, linhas e posição dos blocos estão em js/paginas.js (campos colunas e linhas). O editor visual chega na próxima etapa.' });
+      else lista.push({ chave: 'tipo:' + l.id, rotulo: 'Grade', tipo: 'selecao', opcoes: GRADES, recarrega: true });
       lista.push({ chave: 'largura:' + l.id, rotulo: 'Largura', tipo: 'selecao', opcoes: LARGURAS, recarrega: true });
       lista.push({ chave: 'espaco:' + l.id, rotulo: 'Espaço entre os blocos', tipo: 'selecao', numero: true, opcoes: espacos(l.espaco), recarrega: true });
-      if (l.tipo === 'lateral') lista.push({ chave: 'coluna1:' + l.id, rotulo: 'Largura da 1ª coluna', tipo: 'selecao', numero: true, opcoes: colunas1(l.coluna1), recarrega: true });
-      if (l.tipo === 'lateral' || l.tipo === 'duas') lista.push({ chave: 'pilha:' + l.id, rotulo: 'Blocos empilhados na 1ª coluna', tipo: 'selecao', numero: true, opcoes: pilhas(l.pilha), recarrega: true,
+      if (!livre && l.tipo === 'lateral') lista.push({ chave: 'coluna1:' + l.id, rotulo: 'Largura da 1ª coluna', tipo: 'selecao', numero: true, opcoes: colunas1(l.coluna1), recarrega: true });
+      if (!livre && (l.tipo === 'lateral' || l.tipo === 'duas')) lista.push({ chave: 'pilha:' + l.id, rotulo: 'Blocos empilhados na 1ª coluna', tipo: 'selecao', numero: true, opcoes: pilhas(l.pilha), recarrega: true,
         dica: 'Em tela larga. O bloco seguinte fica ao lado, na altura da pilha.' });
-      const cols = NCOL[l.tipo] || 1, empilhado = (l.tipo === 'lateral' || l.tipo === 'duas') && l.pilha > 1;
+      const cols = livre ? l.colunas.length : NCOL[l.tipo] || 1, empilhado = !livre && (l.tipo === 'lateral' || l.tipo === 'duas') && l.pilha > 1;
       if (cols > 1 && !empilhado) ctx.blocos(l.id).forEach(b => lista.push({ chave: 'ocupa:' + b.id, rotulo: 'Colunas que ocupa: ' + b.titulo, tipo: 'selecao', numero: true, recarrega: true,
         opcoes: Array.from({ length: cols }, (_, k) => [k + 1, k + 1 === 1 ? '1 coluna' : k + 1 === cols ? (k + 1) + ' colunas (a linha toda)' : (k + 1) + ' colunas']) }));
       if (n > 1) lista.push({ chave: 'pos:' + l.id, rotulo: 'Posição na página', tipo: 'selecao', numero: true, opcoes: layouts.map((_, k) => [k + 1, (k + 1) + 'º' + (k === 0 ? ' (em cima)' : k === n - 1 ? ' (embaixo)' : '')]), recarrega: true });
@@ -61,7 +63,7 @@ const PainelLayout = (() => {
 
   const valores = () => {
     const { layouts, entre } = Roteador.layouts(ctx.pid), v = { entre };
-    layouts.forEach((l, i) => { ctx.blocos(l.id).forEach(b => { const o = Math.round(Number(Containers.def(b.id).ocupa)); v['ocupa:' + b.id] = Math.min(NCOL[l.tipo] || 1, Math.max(1, Number.isFinite(o) ? o : 1)); });
+    layouts.forEach((l, i) => { ctx.blocos(l.id).forEach(b => { const o = Math.round(Number(Containers.def(b.id).ocupa)); v['ocupa:' + b.id] = Math.min(Array.isArray(l.colunas) && l.colunas.length ? l.colunas.length : NCOL[l.tipo] || 1, Math.max(1, Number.isFinite(o) ? o : 1)); });
       v['nome:' + l.id] = nomeDe(l); v['tipo:' + l.id] = l.tipo; v['largura:' + l.id] = l.largura; v['espaco:' + l.id] = l.espaco; v['coluna1:' + l.id] = l.coluna1; v['pilha:' + l.id] = l.pilha; v['pos:' + l.id] = i + 1; });
     return v;
   };

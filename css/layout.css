@@ -1,5 +1,6 @@
 /* Layout das páginas: a página tem uma ou mais ÁREAS (div.ct-area), uma embaixo da outra, dentro do .painel-estudo; cada área é um grid.
    O desenho fica aqui; o js/core/roteador.js só preenche as variáveis:
+     na grade livre (.ct-area.livre): --ct-linhas (altura das linhas); em cada bloco --ct-gc e --ct-gr (onde começa) e --ct-ocupa-lin (linhas que ocupa)
      no .painel-estudo:  --ct-entre   multiplicador do espaço ENTRE as áreas (vem de "entre" da página)
                          --ct-topo    1 = deixa espaço no topo; 0 = a página começa por um bloco fixo (o timer), sem espaço extra
      em cada .ct-area:   --ct-colunas as colunas do grid (vem do "tipo" do layout)
@@ -16,6 +17,10 @@
     .ct-area { grid-template-columns: var(--ct-colunas, minmax(0, 1fr)); }
     .ct-area > * { grid-column: span var(--ct-ocupa, 1); }
     .ct-area.ampla { width: min(94vw, 84rem); position: relative; left: 50%; transform: translateX(-50%); }
+    /* grade livre (o layout tem "colunas"): colunas e linhas de tamanho livre; cada bloco diz onde começa (--ct-gc, --ct-gr) e quanto ocupa (--ct-ocupa, --ct-ocupa-lin).
+       Sem posição ("auto") o bloco entra no primeiro espaço livre. O roteador escreve as variáveis. */
+    .ct-area.livre { grid-template-rows: var(--ct-linhas, none); }
+    .ct-area.livre > * { grid-column: var(--ct-gc, auto) / span var(--ct-ocupa, 1); grid-row: var(--ct-gr, auto) / span var(--ct-ocupa-lin, 1); }
     /* "pilha": blocos empilhados na 1ª coluna; o bloco seguinte ocupa a 2ª coluna na altura da pilha (o roteador escreve --ct-col, --ct-row, --ct-lin, --ct-molde).
        A última linha da pilha estica (1fr), então os blocos da 1ª coluna ficam colados, sem vão entre eles. */
     .ct-area.empilha { grid-template-rows: var(--ct-molde, auto); }

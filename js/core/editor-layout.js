@@ -237,7 +237,7 @@ const EditorLayout = (() => {
   function levar(a, alvo) {
     const id = alvo.area.dataset.layout, nova = alvo.fila.slice();
     nova.splice(alvo.idx, 0, a.it);
-    nova.forEach((it, i) => Containers.ajustar(it.id, it === a.it ? { layout: id, ordem: i + 1 } : { ordem: i + 1 }));
+    nova.forEach((it, i) => Containers.ajustar(it.id, it === a.it ? { layout: id, ordem: i + 1, col: null, lin: null } : { ordem: i + 1 }));   // col/lin: posição de grade do layout antigo não vale no novo
     a.fila.filter(it => it !== a.it).forEach((it, i) => Containers.ajustar(it.id, { ordem: i + 1 }));
     Roteador.reaplicar(); marcarAreas(); PainelLayout.atualizar();
   }

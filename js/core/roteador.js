@@ -15,6 +15,15 @@
         pilha    (só em 'lateral' e 'duas', a partir de 72rem) quantos blocos ficam EMPILHADOS na 1ª coluna (1 = nenhum, o padrão); o bloco seguinte
                  ocupa a 2ª coluna na altura da pilha e os outros vêm embaixo dele. Ex.: pilha 2 = calendário e agenda na coluna estreita, gráficos ao lado
         coluna1  (só em 'lateral') largura da 1ª coluna, em rem (padrão 22)
+        colunas  GRADE LIVRE (opcional; se existir, vale no lugar de tipo, pilha e coluna1): lista com o tamanho de cada coluna, até 12.
+                 Número = parte do espaço que sobra (1, 2...: 2 é o dobro de 1); texto com unidade = tamanho fixo ('22rem', '300px', '30%', '1.5fr').
+                 Ex.: colunas: ['22rem', 1] = coluna estreita fixa + o resto;  colunas: [1, 1, 1] = três iguais
+        linhas   (só com colunas) lista com a altura de cada linha, até 24: 'auto' (a do conteúdo, o padrão), número (parte do que sobra) ou '12rem' (altura MÍNIMA).
+                 Linhas que faltam são 'auto'. Ex.: linhas: ['auto', 1]
+   - Na GRADE LIVRE cada container pode dizer onde fica:  col (coluna onde começa, 1...), lin (linha onde começa, 1...), ocupa (quantas colunas) e
+     ocupaLin (quantas linhas; padrão 1). Sem col/lin ele entra no primeiro espaço livre, seguindo a ordem. Dois blocos no mesmo espaço se sobrepõem: cuide para não repetir.
+     Abaixo de 72rem a grade livre vira uma coluna só, na ordem do campo "ordem" de cada container (a mesma de antes). Roteador.modelo(idDaPágina, idDoLayout) devolve a grade de qualquer layout
+     (os antigos são convertidos para colunas, linhas e posições; o resultado desenha igual), e é por ele que o editor visual trabalha.
    - entre: multiplicador do espaço ENTRE uma área e a outra (1 = normal; o padrão). Soma-se ao ajuste geral de Aparência.
    - layout: { tipo, espaco }   atalho antigo: vale como uma única área chamada "principal" (o que já funcionava continua igual).
    - Os ajustes feitos pela tela ficam no Armazém, na chave "paginas": { idDaPagina: { layouts: [...], entre } }; valem mais que o paginas.js.
@@ -49,6 +58,10 @@ const Roteador = (() => {
     seis:    { n: 6, colunas: 'repeat(6, minmax(0, 1fr))' },
     lateral: { n: 2, colunas: '22rem minmax(0, 1fr)' }
   };
+  // grade livre: tamanho das trilhas (colunas e linhas) escritos em CSS; valor inválido vira o padrão
+  const UNID = /^\d+(\.\d+)?(rem|px|%|fr)$/, REM = /^\d+(\.\d+)?rem$/;
+  const MAX_COL = 12, MAX_LIN = 24;
+  const livre = l => Array.isArray(l.colunas) && l.colunas.length > 0;
   const CHAVE = 'paginas';    // nome dos ajustes de páginas no Armazém (navegador + Sheets): { idDaPagina: { layouts, entre } }
   const ajustesPag = Armazem.obter(CHAVE, {});
   const salvarPag = () => Armazem.guardar(CHAVE, ajustesPag);
@@ -89,6 +102,11 @@ const Roteador = (() => {
   }
   const entreDe = p => { const aj = ajustesPag[p.id] || {}; return limitar(aj.entre != null ? aj.entre : p.entre, 0, 5, 1); };
 
+  const colCss = v => (typeof v === 'number' ? 'minmax(0, ' + limitar(v, .1, 20, 1) + 'fr)' : UNID.test(String(v)) ? (/fr$/.test(v) ? 'minmax(0, ' + v + ')' : String(v)) : 'minmax(0, 1fr)');
+  const linCss = v => (typeof v === 'number' ? 'minmax(0, ' + limitar(v, .1, 20, 1) + 'fr)' : REM.test(String(v)) ? 'minmax(' + v + ', auto)' : 'auto');
+  const inteiro = (v, min, max) => { const n = Math.round(Number(v)); return v != null && v !== '' && Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : null; };   // null = não definido
+  const nColunas = (l, p) => (livre(l) ? Math.min(MAX_COL, l.colunas.length) : modeloDe(l, p).n);
+
   function modeloDe(l, p) {
     const m = LAYOUTS[l.tipo];
     if (m) return m;
@@ -113,7 +131,14 @@ const Roteador = (() => {
   function estilizar(reg) {
     reg.ls.forEach(l => {
       const el = reg.areas.get(l.id);
-      el.style.setProperty('--ct-colunas', l.tipo === 'lateral' ? limitar(l.coluna1, 14, 44, 22) + 'rem minmax(0, 1fr)' : modeloDe(l, reg.p).colunas);
+      if (livre(l)) {
+        el.style.setProperty('--ct-colunas', l.colunas.slice(0, MAX_COL).map(colCss).join(' '));
+        if (Array.isArray(l.linhas) && l.linhas.length) el.style.setProperty('--ct-linhas', l.linhas.slice(0, MAX_LIN).map(linCss).join(' ')); else el.style.removeProperty('--ct-linhas');
+      } else {
+        el.style.setProperty('--ct-colunas', l.tipo === 'lateral' ? limitar(l.coluna1, 14, 44, 22) + 'rem minmax(0, 1fr)' : modeloDe(l, reg.p).colunas);
+        el.style.removeProperty('--ct-linhas');
+      }
+      el.classList.toggle('livre', livre(l));
       el.style.setProperty('--ct-espaco', String(limitar(l.espaco, 0, 5, 1)));
       el.classList.toggle('ampla', l.largura !== 'normal');
     });
@@ -126,7 +151,14 @@ const Roteador = (() => {
     const l = reg.ls.find(x => x.id === d.layout) || reg.ls[0], area = reg.areas.get(l.id), raiz = it.inst.raiz;
     if (raiz.parentNode !== area) area.append(raiz);                    // outro layout: leva o bloco para lá
     raiz.style.order = String(Number.isFinite(ordem) ? ordem : it.pos);
-    raiz.style.setProperty('--ct-ocupa', String(Math.min(modeloDe(l, reg.p).n, Math.max(1, Number.isFinite(ocupa) ? ocupa : 1))));
+    const n = nColunas(l, reg.p), col = livre(l) ? inteiro(d.col, 1, n) : null;
+    raiz.style.setProperty('--ct-ocupa', String(Math.min(col ? n - col + 1 : n, Math.max(1, Number.isFinite(ocupa) ? ocupa : 1))));
+    if (livre(l)) {                                                    // grade livre: onde começa e quantas linhas ocupa (só nela; no modo antigo nada disto é escrito)
+      const lin = inteiro(d.lin, 1, MAX_LIN);
+      if (col) raiz.style.setProperty('--ct-gc', String(col)); else raiz.style.removeProperty('--ct-gc');
+      if (lin) raiz.style.setProperty('--ct-gr', String(lin)); else raiz.style.removeProperty('--ct-gr');
+      raiz.style.setProperty('--ct-ocupa-lin', String(inteiro(d.ocupaLin, 1, MAX_LIN) || 1));
+    } else ['--ct-gc', '--ct-gr', '--ct-ocupa-lin'].forEach(v => raiz.style.removeProperty(v));
   }
 
   // "pilha": os primeiros N blocos de uma área de 2 colunas ficam empilhados na 1ª coluna; o seguinte ocupa a 2ª coluna na altura da pilha.
@@ -134,7 +166,7 @@ const Roteador = (() => {
   function empilhar(reg) {
     const ordem = it => Number(it.raiz.style.order) || 0;
     reg.ls.forEach(l => {
-      const area = reg.areas.get(l.id), n = Math.round(limitar(l.pilha, 1, 6, 1)), vale = n > 1 && modeloDe(l, reg.p).n === 2;
+      const area = reg.areas.get(l.id), n = Math.round(limitar(l.pilha, 1, 6, 1)), vale = n > 1 && !livre(l) && modeloDe(l, reg.p).n === 2;
       const filhos = reg.itens.map(it => it.inst.raiz).filter(r => r.parentNode === area).sort((a, b) => ordem({ raiz: a }) - ordem({ raiz: b }));
       area.classList.toggle('empilha', vale);
       if (vale) area.style.setProperty('--ct-molde', Array(n - 1).fill('auto').concat('minmax(0, 1fr)').join(' ')); else area.style.removeProperty('--ct-molde');
@@ -171,6 +203,37 @@ const Roteador = (() => {
   function layouts(id) {
     const p = ligadas.find(x => x.id === id);
     return p ? { layouts: layoutsDe(p).map(l => Object.assign({}, l)), entre: entreDe(p) } : null;
+  }
+
+  // a grade de um layout, pronta para o editor: { livre, colunas, linhas, blocos: [{ id, col, lin, ocupa, ocupaLin }] }.
+  // Layout antigo (tipo/pilha/coluna1) é CONVERTIDO aqui, sem guardar nada: o resultado desenha igual ao que está na tela.
+  function modelo(pid, lid) {
+    const reg = montadas.find(m => m.p.id === pid), l = reg && reg.ls.find(x => x.id === lid);
+    if (!l) return null;
+    const ordem = it => Number(it.inst.raiz.style.order) || 0, area = reg.areas.get(l.id);
+    const itens = reg.itens.filter(it => it.inst.raiz.parentNode === area).sort((a, b) => ordem(a) - ordem(b));
+    const dados = it => Containers.def(it.def.id);
+    if (livre(l)) {
+      const n = nColunas(l, reg.p);
+      return { livre: true, colunas: l.colunas.slice(0, MAX_COL), linhas: (l.linhas || []).slice(0, MAX_LIN), blocos: itens.map(it => {
+        const d = dados(it), col = inteiro(d.col, 1, n);
+        return { id: it.def.id, col, lin: inteiro(d.lin, 1, MAX_LIN), ocupa: Math.min(col ? n - col + 1 : n, inteiro(d.ocupa, 1, n) || 1), ocupaLin: inteiro(d.ocupaLin, 1, MAX_LIN) || 1 };
+      }) };
+    }
+    const n = modeloDe(l, reg.p).n, pn = Math.round(limitar(l.pilha, 1, 6, 1)), pilha = pn > 1 && n === 2;
+    const colunas = l.tipo === 'lateral' ? [limitar(l.coluna1, 14, 44, 22) + 'rem', 1] : Array(n).fill(1);
+    const linhas = pilha ? Array(pn - 1).fill('auto').concat([1]) : [];
+    let r = 1, c = 1;                                                 // o mesmo caminho do CSS: da esquerda para a direita, quebrando a linha quando não cabe
+    const blocos = itens.map((it, i) => {
+      const o = inteiro(dados(it).ocupa, 1, n) || 1;
+      if (pilha) return i < pn ? { id: it.def.id, col: 1, lin: i + 1, ocupa: 1, ocupaLin: 1 }
+        : { id: it.def.id, col: 2, lin: i === pn ? 1 : i, ocupa: 1, ocupaLin: i === pn ? pn : 1 };
+      if (c + o - 1 > n) { r++; c = 1; }
+      const b = { id: it.def.id, col: c, lin: r, ocupa: o, ocupaLin: 1 };
+      c += o; if (c > n) { r++; c = 1; }
+      return b;
+    });
+    return { livre: false, colunas, linhas, blocos };
   }
 
   // apaga os ajustes de layout feitos pela tela (volta ao que está em js/paginas.js); quem chama recarrega a página
@@ -247,5 +310,5 @@ const Roteador = (() => {
     window.addEventListener('hashchange', mostrar);
   }
 
-  return { iniciar, visivel, atual, reaplicar, acaoDePagina, ajustarPagina, layouts, limparAjustes, empilhar: empilharTudo };
+  return { iniciar, visivel, atual, reaplicar, acaoDePagina, ajustarPagina, layouts, modelo, limparAjustes, empilhar: empilharTudo };
 })();

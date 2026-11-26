@@ -37,6 +37,8 @@ const PAGINAS = [
      ocupa   quantas colunas ele ocupa (1, 2 ou 3, até o limite do tipo da área); se faltar, vale 1
    Container de tipo 'fixo' leva um bloco que já está no index.html para dentro de uma área (ver js/containers/fixo.js).
    No celular e em telas estreitas cada área vira uma coluna só, seguindo a ordem.
+   GRADE LIVRE (opcional): num layout, "colunas" e "linhas" (listas de tamanhos) no lugar de tipo/pilha/coluna1; e, no container, col, lin, ocupa e ocupaLin.
+   Ex.: { id: 'principal', colunas: [1, 1, 1], linhas: ['auto', 'auto'] } com  agenda { col: 1, lin: 1 }, notas { col: 1, lin: 2 }, graficos { col: 3, lin: 1, ocupaLin: 2 }. Detalhes em js/core/roteador.js.
 
    Exemplo de página nova (cole dentro da lista acima), com duas colunas e o segundo bloco ocupando as duas:
      { id: 'financas', titulo: 'Finanças', layouts: [ { id: 'principal', tipo: 'duas', espaco: 1.5 } ], containers: [
