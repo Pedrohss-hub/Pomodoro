@@ -29,3 +29,9 @@
   .el-chip { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; padding: .5rem 1rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .85rem; font-weight: 600; white-space: nowrap; box-shadow: 0 12px 30px rgba(35, 32, 58, .3); }
   body.el-arrastando { cursor: grabbing; user-select: none; -webkit-user-select: none; }
   body.el-arrastando .el-alca { cursor: grabbing; }
+  /* Layouts (áreas) no modo editar: nome, contorno, "Solte aqui" quando vazia e a barra que mostra onde o bloco vai ficar ao mudar de área */
+  .painel-estudo.el-editando .ct-area { position: relative; outline: 1px dotted var(--cor); outline-offset: 10px; }
+  .painel-estudo.el-editando .ct-area.el-alvo { outline: 2px solid var(--cor); }
+  .painel-estudo.el-editando .ct-area > .el-area-nome { position: absolute; top: 0; left: 0; z-index: 2; transform: translateY(-160%); outline: none; padding: .15rem .6rem; border-radius: 999px; background: var(--bg); color: var(--ink); border: 1px solid var(--cor); font-size: .72rem; font-weight: 600; line-height: 1.2; white-space: nowrap; pointer-events: none; }
+  .painel-estudo.el-editando .ct-area > .el-vazio { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; min-height: 5rem; outline: none; border: 2px dashed var(--cor); border-radius: 1rem; font-size: .85rem; opacity: .7; }
+  .el-marca { position: fixed; left: 0; top: 0; z-index: 59; pointer-events: none; border-radius: 3px; background: var(--cor); }

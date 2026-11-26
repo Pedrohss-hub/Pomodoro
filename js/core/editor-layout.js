@@ -1,15 +1,18 @@
 /* Editor de layout: o botão "Editar layout" da barra de cada página que tem 2 ou mais containers.
    O botão fica no canto do site, ao lado da engrenagem, só com o símbolo (aria-label e dica explicam); ligado, vira um ✓ em fundo cheio.
    Ligado, cada container ganha uma alça (⋮⋮ + o título) presa à borda de cima; arraste pela alça para outra posição da fila.
-   Os outros da MESMA área se reorganizam na hora (só o style.order muda, o DOM não é mexido). Ao soltar, a nova ordem (1..n) da área é guardada
+   Cada layout (área) da página mostra o seu nome ("Layout: topo"); um layout sem blocos aparece com "Solte aqui".
+   Dentro da MESMA área os outros se reorganizam na hora (só o style.order muda, o DOM não é mexido). Ao soltar, a nova ordem (1..n) da área é guardada
    com Containers.ajustar (navegador + Sheets, como qualquer ajuste) e o Roteador.reaplicar() refaz a tela a partir dela.
+   Para OUTRA área: ao entrar nela, a área ganha um contorno e uma barra mostra onde o bloco vai ficar; o bloco só muda de lugar ao soltar
+   (grava "layout" e "ordem" dele e renumera as duas áreas). Esc cancela.
 
    Como usar: nada a chamar. Basta carregar este arquivo depois de roteador.js e antes de paginas.js (que chama Roteador.iniciar).
    Ele se registra com Roteador.acaoDePagina e o botão aparece sozinho, na barra da página, só onde há 2+ containers ligados.
    Por que assim: "Editar layout" é da PÁGINA, não de um container. O Roteador já sabe onde fica a barra (o [data-acoes] do index.html,
    ou uma barra criada por ele) e quais containers estão ligados; o editor só pede um lugar lá e não precisa saber de nada do HTML.
 
-   Regras:  - só troca a posição na fila da própria área (esquerda→direita, de cima para baixo); não passa um bloco para outra área
+   Regras:  - dentro da área, troca a posição na fila (esquerda→direita, de cima para baixo); entre áreas, escolhe a posição pela barra
             - não cria células vazias nem linhas duplas
             - mouse e toque (pointer events); perto da borda de cima/baixo da tela a página rola sozinha
             - Esc cancela o arrastar (volta como estava); trocar de página ou clicar no botão de novo (✓ "Concluir layout") sai do modo
@@ -27,6 +30,7 @@ const EditorLayout = (() => {
   const DICA_EDITAR = 'Editar layout: arrastar os blocos desta página para outra posição';
   let ed = null;             // modo ligado: { info, alcas: [] }
   let arr = null;            // arrastar em andamento
+  const AREAS = ':scope > .ct-area';   // as áreas (layouts) da página, filhas diretas do destino
 
   const nome = id => Containers.def(id).titulo || id;
 
@@ -52,14 +56,34 @@ const EditorLayout = (() => {
       it.raiz.append(alca); ed.alcas.push(alca);
     });
     info.destino.classList.add('el-editando');
+    marcarAreas();
     marcarBotao(info.id, true);
+  }
+
+  // nome em cada área; área sem blocos ganha um espaço "Solte aqui" (e aparece, mesmo vazia, só enquanto o modo está ligado)
+  function marcarAreas() {
+    if (!ed) return;
+    ed.info.destino.querySelectorAll(AREAS).forEach(area => {
+      area.hidden = false;
+      if (!area.querySelector(':scope > .el-area-nome')) area.append(h('span', 'el-area-nome', 'Layout: ' + area.dataset.layout));
+      const vazia = !ed.info.itens.some(it => it.raiz.parentNode === area), v = area.querySelector(':scope > .el-vazio');
+      if (vazia && !v) area.append(h('div', 'el-vazio', 'Solte aqui'));
+      else if (!vazia && v) v.remove();
+    });
   }
 
   function sair() {
     if (!ed) return;
     if (arr) terminar(false);
     ed.alcas.forEach(a => a.remove());
+    let vazia = false;
+    ed.info.destino.querySelectorAll(AREAS).forEach(area => {
+      if (area.querySelector(':scope > .el-vazio')) vazia = true;
+      area.querySelectorAll(':scope > .el-area-nome, :scope > .el-vazio').forEach(e => e.remove());
+      area.classList.remove('el-alvo');
+    });
     ed.info.destino.classList.remove('el-editando');
+    if (vazia) { const info = ed.info; ed = null; Roteador.reaplicar(); marcarBotao(info.id, false); return; }   // área vazia volta a sumir
     marcarBotao(ed.info.id, false);
     ed = null;
   }
@@ -78,7 +102,7 @@ const EditorLayout = (() => {
     ev.preventDefault();                                    // sem selecionar texto nem rolar a página (a alça tem touch-action: none)
     try { alca.setPointerCapture(ev.pointerId); } catch {}
     const area = it.raiz.parentNode, fila = filaDe(area);
-    arr = { it, alca, area, fila, pid: ev.pointerId, x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, on: false, antes: fila.slice(), ult: null, raf: 0, chip: null };
+    arr = { it, alca, area, fila, pid: ev.pointerId, x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, on: false, antes: fila.slice(), ult: null, raf: 0, chip: null, alvo: null, marca: null };
     window.addEventListener('pointermove', mover);
     window.addEventListener('pointerup', soltar); window.addEventListener('pointercancel', cancelar);
     document.addEventListener('keydown', teclar, true);
@@ -104,7 +128,43 @@ const EditorLayout = (() => {
     if (!arr.raf && velocidade(arr.y)) arr.raf = requestAnimationFrame(rolar);
   }
 
+  // a área (layout) que está sob o ponto, ou nada se ele estiver no espaço entre áreas
+  function areaSob(x, y) {
+    return [...ed.info.destino.querySelectorAll(AREAS)].find(a => {
+      if (a.hidden) return false;
+      const r = a.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    }) || null;
+  }
+
+  // o ponteiro está sobre OUTRA área: acha a posição na fila dela e mostra a barra; nada muda de lugar até soltar
+  function alvoFora(area) {
+    if (arr.alvo && arr.alvo.area !== area) arr.alvo.area.classList.remove('el-alvo');
+    const fila = filaDe(area), lado = fila.length && getComputedStyle(area).gridTemplateColumns.split(' ').length > 1;   // lado a lado ou empilhados
+    let idx = fila.length;
+    for (let i = 0; i < fila.length; i++) {
+      const r = fila[i].raiz.getBoundingClientRect();
+      if (lado ? (arr.y < r.top || (arr.y < r.bottom && arr.x < r.left + r.width / 2)) : arr.y < r.top + r.height / 2) { idx = i; break; }
+    }
+    arr.alvo = { area, idx, fila }; area.classList.add('el-alvo');
+    const ar = area.getBoundingClientRect(), fim = idx >= fila.length;
+    const ref = fila.length ? fila[fim ? idx - 1 : idx].raiz.getBoundingClientRect() : ar;
+    if (!arr.marca) { arr.marca = h('div', 'el-marca'); document.body.append(arr.marca); }
+    const m = arr.marca.style;
+    if (lado) { m.left = (fim ? ref.right : ref.left) - 2 + 'px'; m.top = ref.top + 'px'; m.width = '4px'; m.height = ref.height + 'px'; }
+    else { m.left = ar.left + 'px'; m.top = (fila.length ? (fim ? ref.bottom : ref.top) : ar.top + 8) - 2 + 'px'; m.width = ar.width + 'px'; m.height = '4px'; }
+  }
+
+  function limparAlvo(a) {
+    if (a.alvo) a.alvo.area.classList.remove('el-alvo');
+    if (a.marca) a.marca.remove();
+    a.alvo = null; a.marca = null;
+  }
+
   function trocar() {
+    const area = areaSob(arr.x, arr.y);
+    if (area && area !== arr.area) { alvoFora(area); return; }
+    if (!area) { if (arr.alvo) alvoFora(arr.alvo.area); return; }       // no espaço entre áreas: mantém o último alvo
+    if (arr.alvo) limparAlvo(arr);                                      // voltou para a própria área
     const px = arr.x + scrollX, py = arr.y + scrollY;
     if (arr.ult && Math.hypot(px - arr.ult.x, py - arr.ult.y) < HISTERESE) return;
     const el = document.elementFromPoint(arr.x, arr.y);
@@ -143,13 +203,24 @@ const EditorLayout = (() => {
     document.removeEventListener('keydown', teclar, true); window.removeEventListener('blur', cancelar);
     try { a.alca.releasePointerCapture(a.pid); } catch {}
     if (a.chip) a.chip.remove();
+    const alvo = a.alvo; limparAlvo(a);
     a.it.raiz.classList.remove('el-arrastado'); document.body.classList.remove('el-arrastando');
     if (!a.on) return;
+    if (guardar && alvo) { levar(a, alvo); return; }                                  // soltou em outra área
     const mudou = a.fila.some((it, i) => it !== a.antes[i]);
-    if (!guardar) { if (mudou) Roteador.reaplicar(); return; }                       // cancelou: volta como estava (reaplicar relê a configuração)
+    if (!guardar) { if (mudou) { Roteador.reaplicar(); marcarAreas(); } return; }                       // cancelou: volta como estava (reaplicar relê a configuração)
     if (!mudou) return;                                     // soltou onde estava: nada a gravar
     a.fila.forEach((it, i) => Containers.ajustar(it.id, { ordem: i + 1 }));          // 1..n dos containers da área
-    Roteador.reaplicar();
+    Roteador.reaplicar(); marcarAreas();
+  }
+
+  // leva o bloco para outra área: grava o layout e a posição dele, e renumera (1..n) as duas áreas
+  function levar(a, alvo) {
+    const id = alvo.area.dataset.layout, nova = alvo.fila.slice();
+    nova.splice(alvo.idx, 0, a.it);
+    nova.forEach((it, i) => Containers.ajustar(it.id, it === a.it ? { layout: id, ordem: i + 1 } : { ordem: i + 1 }));
+    a.fila.filter(it => it !== a.it).forEach((it, i) => Containers.ajustar(it.id, { ordem: i + 1 }));
+    Roteador.reaplicar(); marcarAreas();
   }
 
   /* ---------- o botão da barra ---------- */
