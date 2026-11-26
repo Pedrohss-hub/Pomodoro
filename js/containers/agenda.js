@@ -1,8 +1,9 @@
 /* Tipo de container "agenda": lê uma aba (Status, ID, Descrição, Horas, Categoria, Rest, Data), mostra a lista ordenada por data
    e deixa concluir, editar, adicionar e excluir itens (grava na planilha pelo Sheets).
-   Configuração (em js/paginas.js): { aba, intervalo, vermelho, amarelo, concluidas, titulo }. */
+   Configuração (em js/paginas.js): { aba, intervalo, vermelho, amarelo, concluidas, titulo, altura }.
+     altura = altura máxima da lista, em rem (1 rem ≈ 16 px); passou disso, a lista rola (padrão 32). */
 Containers.registrar('agenda', ctx => {
-  const PADRAO = { titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false };
+  const PADRAO = { titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false, altura: 32 };
   const a = () => Object.assign({}, PADRAO, ctx.def());              // configuração de agora (padrão + o que você mudou)
   const CACHE = 'ct-cache-' + ctx.id, TTL = 10 * 60 * 1000, REGEX = Util.REGEX_INTERVALO;
   const salvo = LS.get(CACHE, null) || {};
@@ -93,6 +94,7 @@ Containers.registrar('agenda', ctx => {
 
   function render() {
     q('.ag-titulo').textContent = a().titulo;
+    raiz.style.setProperty('--ag-altura', String(Math.max(8, Number(a().altura) || 32)));
     if (!Sheets.pronto()) return msg('Configure a URL e o token (Configurações) para ver a agenda.');
     if (est.sig !== sig()) return msg(est.carregando ? 'Carregando…' : est.erro ? 'Não consegui carregar: ' + est.erro : 'Ainda sem dados. Use ↻.', !!est.erro && !est.carregando);
     const { vermelho, amarelo, concluidas } = a();
@@ -225,7 +227,8 @@ Containers.registrar('agenda', ctx => {
     { chave: 'intervalo', rotulo: 'Células', tipo: 'intervalo', dica: 'Colunas, nesta ordem: Status, ID, Descrição, Horas, Categoria, Rest, Data. Ex.: A3:G' },
     { chave: 'vermelho', rotulo: 'Data em vermelho até (dias)', tipo: 'numero', min: 0, dica: 'Passou disso, fica amarela; mais longe ainda, verde.' },
     { chave: 'amarelo', rotulo: 'Data em amarelo até (dias)', tipo: 'numero', min: 0 },
-    { chave: 'concluidas', rotulo: 'Mostrar também os itens concluídos', tipo: 'caixa' }
+    { chave: 'concluidas', rotulo: 'Mostrar também os itens concluídos', tipo: 'caixa' },
+    { chave: 'altura', rotulo: 'Altura máxima da lista', tipo: 'numero', min: 8, max: 80, dica: 'Em rem (1 rem ≈ 16 px). Passou disso, a lista rola.' }
   ];
   q('.ag-engrenagem').onclick = () => Painel.abrir({
     id: 'cfg:' + ctx.id, titulo: a().titulo, subtitulo: 'Agenda · as mudanças valem na hora', alvo: raiz, campos: CAMPOS, valores: a,

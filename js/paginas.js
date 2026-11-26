@@ -5,14 +5,13 @@ const PAGINAS = [
   { id: 'pomodoro', titulo: 'Pomodoro', fixa: 'pg-pomo', entre: 1,
     layouts: [
       { id: 'topo', tipo: 'coluna', largura: 'normal' },                  // o timer e as Sessões, na largura do site
-      { id: 'calendario', tipo: 'coluna', largura: 'ampla' },             // o calendário do mês, acima da Agenda
-      { id: 'principal', tipo: 'lateral', espaco: 1, largura: 'ampla' }   // Agenda e Gráficos, em tela larga
+      { id: 'principal', tipo: 'lateral', espaco: 1, largura: 'ampla', pilha: 2, coluna1: 26 }   // coluna estreita (calendário em cima da Agenda) + Gráficos ao lado
     ],
     containers: [
       { id: 'pomodoro-fixo', tipo: 'fixo', layout: 'topo', ordem: 1, titulo: 'Timer e Sessões', alvo: '#pg-pomo > .grade' },
-      { id: 'calendario', tipo: 'calendario', layout: 'calendario', ordem: 1, titulo: 'Calendário' },   // usa os itens da Agenda (não lê a planilha)
-      { id: 'agenda', tipo: 'agenda', layout: 'principal', ordem: 1, titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false },
-      { id: 'graficos', tipo: 'graficos', layout: 'principal', ordem: 2, titulo: 'Gráficos de estudo', graficos: null }   // null = lista padrão (editável no ⚙ do quadro)
+      { id: 'calendario', tipo: 'calendario', layout: 'principal', ordem: 1, titulo: 'Calendário' },   // usa os itens da Agenda (não lê a planilha)
+      { id: 'agenda', tipo: 'agenda', layout: 'principal', ordem: 2, titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false, altura: 18 },
+      { id: 'graficos', tipo: 'graficos', layout: 'principal', ordem: 3, titulo: 'Gráficos de estudo', graficos: null }   // null = lista padrão (editável no ⚙ do quadro)
     ] },
   { id: 'grade', titulo: 'Grade', fixa: 'pg-grade', larga: true,
     layouts: [ { id: 'principal', tipo: 'coluna', largura: 'normal' } ],
@@ -28,6 +27,8 @@ const PAGINAS = [
      tipo     'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'lateral' (coluna estreita + o resto, como o Pomodoro)
      espaco   espaço entre os blocos DENTRO da área: 1 = normal, 0.5 = metade, 2 = dobro (soma-se ao ajuste geral de Aparência)
      largura  'ampla' (o padrão; largura grande em tela larga) | 'normal' (a largura do site)
+     pilha    quantos blocos ficam empilhados na 1ª coluna (só 'lateral' e 'duas', em tela larga); o seguinte fica ao lado, na altura da pilha (padrão 1 = nenhum)
+     coluna1  (só 'lateral') largura da 1ª coluna, em rem (padrão 22)
    Na página: "entre" = espaço ENTRE uma área e a outra (1 = normal). Sem "layouts", o antigo  layout: { tipo, espaco }  vale como uma área só ("principal").
    Em cada container:
      layout  o id da área onde ele fica; se faltar, a primeira

@@ -16,6 +16,10 @@
     .ct-area { grid-template-columns: var(--ct-colunas, minmax(0, 1fr)); }
     .ct-area > * { grid-column: span var(--ct-ocupa, 1); }
     .ct-area.ampla { width: min(94vw, 84rem); position: relative; left: 50%; transform: translateX(-50%); }
+    /* "pilha": blocos empilhados na 1ª coluna; o bloco seguinte ocupa a 2ª coluna na altura da pilha (o roteador escreve --ct-col, --ct-row, --ct-lin, --ct-molde).
+       A última linha da pilha estica (1fr), então os blocos da 1ª coluna ficam colados, sem vão entre eles. */
+    .ct-area.empilha { grid-template-rows: var(--ct-molde, auto); }
+    .ct-area.empilha > * { grid-column: var(--ct-col, 1); grid-row: var(--ct-row, auto) / span var(--ct-lin, 1); }
   }
 
   /* Modo "Editar layout" (js/core/editor-layout.js): só existe enquanto o modo está ligado; fora dele nada disto vale.

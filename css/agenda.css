@@ -7,7 +7,7 @@
   /* agenda apagadinha fora da vista (mesmo efeito dos gráficos) */
   .ag-box { opacity: .5; filter: saturate(.45); transition: opacity .35s ease, filter .35s ease; }
   .ag-box:hover, .ag-box:focus-within, .ag-box.em-foco { opacity: 1; filter: none; }
-  .ag-lista { display: grid; gap: calc(.5rem * var(--esp)); max-height: 32rem; overflow: auto; padding: 0 .9rem 0 0; scrollbar-gutter: stable; scrollbar-width: thin; }
+  .ag-lista { display: grid; gap: calc(.5rem * var(--esp)); max-height: calc(var(--ag-altura, 32) * 1rem); overflow: auto; padding: 0 .9rem 0 0; scrollbar-gutter: stable; scrollbar-width: thin; }
   .ag-item { display: grid; grid-template-columns: 5rem minmax(0, 1fr) auto; gap: .7rem; cursor: pointer; align-items: center; padding: .5rem .6rem; border: 1.5px solid var(--line); border-radius: calc(.8rem * var(--raio)); background: var(--card); }
   .ag-data { display: grid; justify-items: center; padding: .35rem .2rem; border-radius: .6rem; text-align: center; line-height: 1.2; font-variant-numeric: tabular-nums; }
   .ag-data b { font-size: .95rem; }

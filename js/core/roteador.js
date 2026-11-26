@@ -11,6 +11,9 @@
         tipo     'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'lateral' (coluna estreita de 22rem + o resto)
         espaco   multiplicador do espaço entre os blocos DENTRO da área (1 = normal, 0.5 = metade, 2 = dobro); soma-se ao ajuste geral de Aparência
         largura  'ampla' (o padrão: largura grande a partir de 72rem) | 'normal' (a largura do site)
+        pilha    (só em 'lateral' e 'duas', a partir de 72rem) quantos blocos ficam EMPILHADOS na 1ª coluna (1 = nenhum, o padrão); o bloco seguinte
+                 ocupa a 2ª coluna na altura da pilha e os outros vêm embaixo dele. Ex.: pilha 2 = calendário e agenda na coluna estreita, gráficos ao lado
+        coluna1  (só em 'lateral') largura da 1ª coluna, em rem (padrão 22)
    - entre: multiplicador do espaço ENTRE uma área e a outra (1 = normal; o padrão). Soma-se ao ajuste geral de Aparência.
    - layout: { tipo, espaco }   atalho antigo: vale como uma única área chamada "principal" (o que já funcionava continua igual).
    - Os ajustes feitos pela tela ficam no Armazém, na chave "paginas": { idDaPagina: { layouts: [...], entre } }; valem mais que o paginas.js.
@@ -78,7 +81,7 @@ const Roteador = (() => {
     const lista = Array.isArray(aj.layouts) && aj.layouts.length ? aj.layouts : (Array.isArray(p.layouts) && p.layouts.length ? p.layouts : [Object.assign({ id: 'principal' }, p.layout)]);
     const vistos = new Set();
     const ok = lista.filter(l => l && ID_OK.test(l.id || '') && !vistos.has(l.id) && vistos.add(l.id));
-    return (ok.length ? ok : [{ id: 'principal' }]).map(l => Object.assign({ tipo: 'coluna', espaco: 1, largura: 'ampla' }, l));
+    return (ok.length ? ok : [{ id: 'principal' }]).map(l => Object.assign({ tipo: 'coluna', espaco: 1, largura: 'ampla', pilha: 1, coluna1: 22 }, l));
   }
   const entreDe = p => { const aj = ajustesPag[p.id] || {}; return limitar(aj.entre != null ? aj.entre : p.entre, 0, 5, 1); };
 
@@ -106,7 +109,7 @@ const Roteador = (() => {
   function estilizar(reg) {
     reg.ls.forEach(l => {
       const el = reg.areas.get(l.id);
-      el.style.setProperty('--ct-colunas', modeloDe(l, reg.p).colunas);
+      el.style.setProperty('--ct-colunas', l.tipo === 'lateral' ? limitar(l.coluna1, 14, 44, 22) + 'rem minmax(0, 1fr)' : modeloDe(l, reg.p).colunas);
       el.style.setProperty('--ct-espaco', String(limitar(l.espaco, 0, 5, 1)));
       el.classList.toggle('ampla', l.largura !== 'normal');
     });
@@ -122,6 +125,25 @@ const Roteador = (() => {
     raiz.style.setProperty('--ct-ocupa', String(Math.min(modeloDe(l, reg.p).n, Math.max(1, Number.isFinite(ocupa) ? ocupa : 1))));
   }
 
+  // "pilha": os primeiros N blocos de uma área de 2 colunas ficam empilhados na 1ª coluna; o seguinte ocupa a 2ª coluna na altura da pilha.
+  // Só escreve variáveis (--ct-col, --ct-row, --ct-lin e --ct-molde); o desenho está em css/layout.css (a partir de 72rem).
+  function empilhar(reg) {
+    const ordem = it => Number(it.raiz.style.order) || 0;
+    reg.ls.forEach(l => {
+      const area = reg.areas.get(l.id), n = Math.round(limitar(l.pilha, 1, 6, 1)), vale = n > 1 && modeloDe(l, reg.p).n === 2;
+      const filhos = reg.itens.map(it => it.inst.raiz).filter(r => r.parentNode === area).sort((a, b) => ordem({ raiz: a }) - ordem({ raiz: b }));
+      area.classList.toggle('empilha', vale);
+      if (vale) area.style.setProperty('--ct-molde', Array(n - 1).fill('auto').concat('minmax(0, 1fr)').join(' ')); else area.style.removeProperty('--ct-molde');
+      filhos.forEach((r, i) => {
+        ['--ct-col', '--ct-row', '--ct-lin'].forEach(v => r.style.removeProperty(v));
+        if (!vale) return;
+        r.style.setProperty('--ct-col', i < n ? '1' : '2');
+        if (i === n) { r.style.setProperty('--ct-row', '1'); r.style.setProperty('--ct-lin', String(n)); }
+      });
+    });
+  }
+  const empilharTudo = () => montadas.forEach(empilhar);          // o editor chama enquanto você arrasta (a ordem muda ao vivo)
+
   // área vazia some (senão o espaço entre áreas ficaria sobrando); sem espaço no topo quando a página começa por um bloco fixo (o timer)
   function acabar(reg) {
     reg.areas.forEach((el, id) => { if (!reg.ls.some(l => l.id === id)) { el.remove(); reg.areas.delete(id); } });
@@ -134,7 +156,7 @@ const Roteador = (() => {
 
   // refaz áreas, ordem e largura de todas as páginas (use depois de mudar algo com Containers.ajustar)
   function reaplicar() {
-    montadas.forEach(m => { montarAreas(m); m.itens.forEach(it => posicionar(it, m)); acabar(m); estilizar(m); });
+    montadas.forEach(m => { montarAreas(m); m.itens.forEach(it => posicionar(it, m)); acabar(m); estilizar(m); empilhar(m); });
   }
 
   // ajusta as áreas de uma página pela tela: campos = { layouts: [...], entre: n }; guarda (navegador + Sheets) e redesenha
@@ -211,7 +233,7 @@ const Roteador = (() => {
         const it = { inst, def, pos: i + 1 }; reg.itens.push(it); posicionar(it, reg);
         if (inst.acoes) acoes.push(...inst.acoes);
       });
-      acabar(reg); estilizar(reg);
+      acabar(reg); estilizar(reg); empilhar(reg);
       montadas.push(reg);
       const info = { id: p.id, el: els[p.id], destino, itens: reg.itens.map(it => ({ id: it.def.id, raiz: it.inst.raiz })) };
       provedores.forEach(fn => { try { const a = fn(info); if (a) acoes.push(a); } catch (err) { console.error('botão de página falhou (' + p.id + '):', err); } });
@@ -221,5 +243,5 @@ const Roteador = (() => {
     window.addEventListener('hashchange', mostrar);
   }
 
-  return { iniciar, visivel, atual, reaplicar, acaoDePagina, ajustarPagina, layouts, limparAjustes };
+  return { iniciar, visivel, atual, reaplicar, acaoDePagina, ajustarPagina, layouts, limparAjustes, empilhar: empilharTudo };
 })();

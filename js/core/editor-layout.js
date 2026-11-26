@@ -43,7 +43,7 @@ const EditorLayout = (() => {
 
   // os blocos de uma área (o pai do bloco), na ordem visual de agora
   const filaDe = area => ordemVisual(ed.info.itens.filter(it => it.raiz.parentNode === area));
-  const escreverOrdem = fila => fila.forEach((it, i) => { it.raiz.style.order = String(i + 1); });
+  const escreverOrdem = fila => { fila.forEach((it, i) => { it.raiz.style.order = String(i + 1); }); Roteador.empilhar(); };   // empilhar: refaz a "pilha" com a ordem nova
 
   /* ---------- ligar e desligar ---------- */
   function entrar(info) {
