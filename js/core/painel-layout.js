@@ -41,7 +41,7 @@ const PainelLayout = (() => {
         dica: n > 1 && q > 0 ? 'Para apagar este layout, arraste os blocos dele para outro.' : '' });
       lista.push({ chave: 'nome:' + l.id, rotulo: 'Nome do layout', tipo: 'texto', ao: 'change', recarrega: true });
       const livre = Array.isArray(l.colunas) && l.colunas.length > 0;
-      if (livre) lista.push({ tipo: 'titulo', rotulo: 'Grade livre: ' + l.colunas.length + (l.colunas.length === 1 ? ' coluna' : ' colunas'), dica: 'Colunas, linhas e posição dos blocos estão em js/paginas.js (campos colunas e linhas). O editor visual chega na próxima etapa.' });
+      if (livre) lista.push({ tipo: 'titulo', rotulo: 'Grade livre: ' + l.colunas.length + (l.colunas.length === 1 ? ' coluna' : ' colunas'), dica: 'Edite direto na página: arraste os blocos, as divisórias e as alças dos cantos; use + e × para colunas e linhas.' });
       else lista.push({ chave: 'tipo:' + l.id, rotulo: 'Grade', tipo: 'selecao', opcoes: GRADES, recarrega: true });
       lista.push({ chave: 'largura:' + l.id, rotulo: 'Largura', tipo: 'selecao', opcoes: LARGURAS, recarrega: true });
       lista.push({ chave: 'espaco:' + l.id, rotulo: 'Espaço entre os blocos', tipo: 'selecao', numero: true, opcoes: espacos(l.espaco), recarrega: true });

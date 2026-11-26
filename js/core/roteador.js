@@ -23,7 +23,8 @@
    - Na GRADE LIVRE cada container pode dizer onde fica:  col (coluna onde começa, 1...), lin (linha onde começa, 1...), ocupa (quantas colunas) e
      ocupaLin (quantas linhas; padrão 1). Sem col/lin ele entra no primeiro espaço livre, seguindo a ordem. Dois blocos no mesmo espaço se sobrepõem: cuide para não repetir.
      Abaixo de 72rem a grade livre vira uma coluna só, na ordem do campo "ordem" de cada container (a mesma de antes). Roteador.modelo(idDaPágina, idDoLayout) devolve a grade de qualquer layout
-     (os antigos são convertidos para colunas, linhas e posições; o resultado desenha igual), e é por ele que o editor visual trabalha.
+     (os antigos são convertidos para colunas, linhas e posições; o resultado desenha igual), e é por ele que o editor visual (js/core/editor-grade.js) trabalha.
+     Roteador.cssTrilhas(colunas, linhas) devolve o CSS dessas listas ({ colunas, linhas }), para mostrar o resultado ao vivo.
    - entre: multiplicador do espaço ENTRE uma área e a outra (1 = normal; o padrão). Soma-se ao ajuste geral de Aparência.
    - layout: { tipo, espaco }   atalho antigo: vale como uma única área chamada "principal" (o que já funcionava continua igual).
    - Os ajustes feitos pela tela ficam no Armazém, na chave "paginas": { idDaPagina: { layouts: [...], entre } }; valem mais que o paginas.js.
@@ -236,6 +237,9 @@ const Roteador = (() => {
     return { livre: false, colunas, linhas, blocos };
   }
 
+  // o CSS das trilhas de uma grade ({ colunas, linhas }); o editor de grade usa para mostrar o resultado ao vivo, antes de guardar
+  const cssTrilhas = (colunas, linhas) => ({ colunas: colunas.slice(0, MAX_COL).map(colCss).join(' '), linhas: Array.isArray(linhas) && linhas.length ? linhas.slice(0, MAX_LIN).map(linCss).join(' ') : null });
+
   // apaga os ajustes de layout feitos pela tela (volta ao que está em js/paginas.js); quem chama recarrega a página
   function limparAjustes() { Object.keys(ajustesPag).forEach(k => { delete ajustesPag[k]; }); salvarPag(); }
 
@@ -310,5 +314,5 @@ const Roteador = (() => {
     window.addEventListener('hashchange', mostrar);
   }
 
-  return { iniciar, visivel, atual, reaplicar, acaoDePagina, ajustarPagina, layouts, modelo, limparAjustes, empilhar: empilharTudo };
+  return { iniciar, visivel, atual, reaplicar, acaoDePagina, ajustarPagina, layouts, modelo, cssTrilhas, limparAjustes, empilhar: empilharTudo };
 })();

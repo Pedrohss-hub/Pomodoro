@@ -46,3 +46,39 @@
   .el-layouts-btn { position: fixed; left: 1rem; bottom: 1rem; z-index: 45; padding: .55rem 1rem; border: 0; border-radius: 999px; background: var(--ink); color: var(--bg); font-weight: 600; font-size: .85rem; cursor: pointer; box-shadow: 0 6px 18px rgba(35, 32, 58, .3); }
   body.painel-aberto .el-layouts-btn { display: none; }
   .el-marca { position: fixed; left: 0; top: 0; z-index: 59; pointer-events: none; border-radius: 3px; background: var(--cor); }
+
+  /* Editor de grade (js/core/editor-grade.js): só em tela larga e só no modo "Editar layout".
+     .el-grade é uma camada por cima do layout, com as mesmas colunas (var(--ct-colunas) herdada) e as mesmas linhas (px, copiadas pelo JS);
+     nela ficam as células, as divisórias, as etiquetas e os botões +. Só o que se pode clicar recebe o mouse (pointer-events). */
+  .el-redim, .el-grade, .el-dica { display: none; }
+  .el-celula-marca { position: fixed; z-index: 59; pointer-events: none; box-sizing: border-box; border: 2px solid var(--cor); border-radius: .8rem; background: color-mix(in srgb, var(--cor) 16%, transparent); }
+  .el-celula-marca.nao { border-style: dashed; border-color: var(--erro, #d33); background: color-mix(in srgb, var(--erro, #d33) 12%, transparent); }
+  .el-celula-marca[hidden] { display: none; }
+  @media (min-width: 72rem) {
+    .painel-estudo.el-editando .ct-area > .el-grade { display: grid; position: absolute; inset: 0; z-index: 2; grid-area: auto; grid-template-columns: var(--ct-colunas, none); pointer-events: none; outline: none; margin: 0; }
+    .el-celula { box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px dashed color-mix(in srgb, var(--cor) 55%, transparent); border-radius: .8rem; color: var(--cor); font-size: .72rem; font-weight: 600; opacity: .85; }
+    .el-celula.cheia { border: 0; }
+    .ct-area.el-com-grade > .el-vazio { border-color: transparent; color: transparent; }
+    .ct-area.livre > .el-vazio { display: none; }
+    .el-divisor { position: absolute; z-index: 1; pointer-events: auto; touch-action: none; }
+    .el-divisor.v { top: 0; bottom: 0; width: 12px; cursor: col-resize; }
+    .el-divisor.h { left: 0; right: 0; height: 12px; cursor: row-resize; }
+    .el-divisor::after { content: ''; position: absolute; border-radius: 2px; background: var(--cor); opacity: .25; transition: opacity .15s; }
+    .el-divisor.v::after { left: 5px; width: 2px; top: 0; bottom: 0; }
+    .el-divisor.h::after { top: 5px; height: 2px; left: 0; right: 0; }
+    .el-divisor:hover::after, .el-divisor.ativo::after { opacity: .95; }
+    .el-dica { display: block; position: absolute; z-index: 3; padding: .2rem .55rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .72rem; font-weight: 600; white-space: nowrap; pointer-events: none; }
+    .el-tag { position: absolute; z-index: 1; pointer-events: auto; display: inline-flex; align-items: center; justify-content: center; gap: .25rem; min-width: 1.4rem; box-sizing: border-box; padding: .1rem .45rem; border-radius: 999px; background: var(--bg); color: var(--ink); border: 1px solid var(--cor); font-size: .68rem; font-weight: 600; line-height: 1.2; white-space: nowrap; }
+    .el-tag.c { top: calc(100% + .35rem); transform: translateX(-50%); }
+    .el-tag.l { right: calc(100% + .3rem); transform: translateY(-50%); padding: .1rem .3rem; }
+    .el-tag button { padding: 0 .15rem; border: 0; background: none; color: var(--erro, #c33); font: inherit; font-weight: 800; cursor: pointer; }
+    .el-mais { position: absolute; z-index: 1; pointer-events: auto; display: flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: 1.1rem; line-height: 1; cursor: pointer; }
+    .el-mais.c { left: calc(100% + .35rem); top: 0; }
+    .el-mais.l { right: calc(100% + .3rem); top: calc(100% + .35rem); }
+    /* alças do bloco: direita, embaixo e canto (ocupar mais colunas/linhas) */
+    .painel-estudo.el-editando .ct-area > * > .el-redim { display: block; position: absolute; z-index: 4; border-radius: 999px; background: var(--cor); opacity: .7; touch-action: none; }
+    .el-redim:hover, .el-redim.ativo { opacity: 1; }
+    .el-redim.d { right: -3px; top: 30%; bottom: 30%; width: 6px; cursor: ew-resize; }
+    .el-redim.b { bottom: -3px; left: 30%; right: 30%; height: 6px; cursor: ns-resize; }
+    .el-redim.c { right: -5px; bottom: -5px; width: 14px; height: 14px; cursor: nwse-resize; }
+  }

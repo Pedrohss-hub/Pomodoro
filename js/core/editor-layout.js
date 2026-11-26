@@ -14,8 +14,8 @@
    Por que assim: "Editar layout" é da PÁGINA, não de um container. O Roteador já sabe onde fica a barra (o [data-acoes] do index.html,
    ou uma barra criada por ele) e quais containers estão ligados; o editor só pede um lugar lá e não precisa saber de nada do HTML.
 
-   Regras:  - dentro da área, troca a posição na fila (esquerda→direita, de cima para baixo); entre áreas, escolhe a posição pela barra
-            - não cria células vazias nem linhas duplas
+   Regras:  - tela larga (>= 72rem): dentro da área o bloco vai para uma CÉLULA (livre: move; ocupada: troca de lugar); quem desenha as células, divisórias e
+              alças é o js/core/editor-grade.js. Tela estreita: troca a posição na fila (só a "ordem"). Entre áreas, escolhe a posição pela barra
             - mouse e toque (pointer events); perto da borda de cima/baixo da tela a página rola sozinha
             - Esc cancela o arrastar (volta como estava); trocar de página ou clicar no botão de novo (✓ "Concluir layout") sai do modo
             - fora do modo, nada muda: alça e classes só existem enquanto ele está ligado
@@ -57,6 +57,7 @@ const EditorLayout = (() => {
       alca.addEventListener('contextmenu', ev => ev.preventDefault());   // pressionar e segurar no celular não abre menu
       it.raiz.append(alca); ed.alcas.push(alca);
     });
+    EditorGrade.ligar(info, () => { marcarAreas(); PainelLayout.atualizar(); });       // células, divisórias e alças (tela larga)
     info.destino.classList.add('el-editando');
     const bl = h('button', 'el-layouts-btn', '⚙ Layouts'); bl.type = 'button'; bl.title = 'Abrir o painel de layouts'; bl.onclick = abrirLayouts;   // sempre à mão para reabrir o painel (some quando ele está aberto)
     document.body.append(bl); ed.btnLayouts = bl;
@@ -87,11 +88,13 @@ const EditorLayout = (() => {
       if (vazia && !v) area.append(h('div', 'el-vazio', 'Solte aqui'));
       else if (!vazia && v) v.remove();
     });
+    EditorGrade.atualizar();
   }
 
   function sair() {
     if (!ed) return;
     if (arr) terminar(false);
+    const mexeu = EditorGrade.desligar();                   // true: ele mexeu nas linhas de algum layout; refazer a página desfaz
     ed.alcas.forEach(a => a.remove());
     if (ed.btnLayouts) ed.btnLayouts.remove();
     PainelLayout.fechar();
@@ -102,7 +105,7 @@ const EditorLayout = (() => {
       area.classList.remove('el-alvo');
     });
     ed.info.destino.classList.remove('el-editando');
-    if (vazia) { const info = ed.info; ed = null; Roteador.reaplicar(); marcarBotao(info.id, false); return; }   // área vazia volta a sumir
+    if (vazia || mexeu) { const info = ed.info; ed = null; Roteador.reaplicar(); marcarBotao(info.id, false); return; }   // área vazia volta a sumir
     marcarBotao(ed.info.id, false);
     ed = null;
   }
@@ -126,6 +129,7 @@ const EditorLayout = (() => {
     window.addEventListener('pointerup', soltar); window.addEventListener('pointercancel', cancelar);
     document.addEventListener('keydown', teclar, true);
     window.addEventListener('blur', cancelar);
+    EditorGrade.comecarArrasto(it.id, ev.clientX);          // tela larga: guarda a grade e por qual coluna você pegou o bloco
   }
 
   function mover(ev) {
@@ -181,9 +185,10 @@ const EditorLayout = (() => {
 
   function trocar() {
     const area = areaSob(arr.x, arr.y);
-    if (area && area !== arr.area) { alvoFora(area); return; }
+    if (area && area !== arr.area) { EditorGrade.limparSobre(); alvoFora(area); return; }
     if (!area) { if (arr.alvo) alvoFora(arr.alvo.area); return; }       // no espaço entre áreas: mantém o último alvo
     if (arr.alvo) limparAlvo(arr);                                      // voltou para a própria área
+    if (EditorGrade.larga()) { EditorGrade.sobre(arr.x, arr.y); return; }  // tela larga: escolhe a célula (o editor-grade mostra a marca)
     const px = arr.x + scrollX, py = arr.y + scrollY;
     if (arr.ult && Math.hypot(px - arr.ult.x, py - arr.ult.y) < HISTERESE) return;
     const el = document.elementFromPoint(arr.x, arr.y);
@@ -224,8 +229,10 @@ const EditorLayout = (() => {
     if (a.chip) a.chip.remove();
     const alvo = a.alvo; limparAlvo(a);
     a.it.raiz.classList.remove('el-arrastado'); document.body.classList.remove('el-arrastando');
-    if (!a.on) return;
-    if (guardar && alvo) { levar(a, alvo); return; }                                  // soltou em outra área
+    if (!a.on) { EditorGrade.cancelarArrasto(); return; }
+    if (guardar && alvo) { EditorGrade.cancelarArrasto(); levar(a, alvo); return; }    // soltou em outra área
+    if (EditorGrade.larga()) { if (guardar) EditorGrade.soltarArrasto(); else EditorGrade.cancelarArrasto(); return; }   // tela larga, mesma área: célula livre move, ocupada troca
+    EditorGrade.cancelarArrasto();
     const mudou = a.fila.some((it, i) => it !== a.antes[i]);
     if (!guardar) { if (mudou) { Roteador.reaplicar(); marcarAreas(); } return; }                       // cancelou: volta como estava (reaplicar relê a configuração)
     if (!mudou) return;                                     // soltou onde estava: nada a gravar
@@ -237,7 +244,7 @@ const EditorLayout = (() => {
   function levar(a, alvo) {
     const id = alvo.area.dataset.layout, nova = alvo.fila.slice();
     nova.splice(alvo.idx, 0, a.it);
-    nova.forEach((it, i) => Containers.ajustar(it.id, it === a.it ? { layout: id, ordem: i + 1, col: null, lin: null } : { ordem: i + 1 }));   // col/lin: posição de grade do layout antigo não vale no novo
+    nova.forEach((it, i) => Containers.ajustar(it.id, it === a.it ? { layout: id, ordem: i + 1, col: null, lin: null, ocupaLin: null } : { ordem: i + 1 }));   // col/lin/ocupaLin: a posição de grade do layout antigo não vale no novo
     a.fila.filter(it => it !== a.it).forEach((it, i) => Containers.ajustar(it.id, { ordem: i + 1 }));
     Roteador.reaplicar(); marcarAreas(); PainelLayout.atualizar();
   }
