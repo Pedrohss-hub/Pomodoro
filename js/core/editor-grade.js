@@ -431,7 +431,7 @@ const EditorGrade = (() => {
   function ligar(info, depois) {
     if (st) desligar();
     st = { info, depois, mexeu: false, raf: 0, obs: new Set() };
-    st.ro = new ResizeObserver(entradas => {         // tamanho do layout mudou (janela, painel): refaz o desenho (só se mudou de verdade)
+    st.ro = new ResizeObserver(entradas => {         // tamanho do layout mudou (janela; o Painel flutua e não muda mais isso): refaz o desenho (só se mudou de verdade)
       if (drag || arr || st.previa || !entradas.some(e => tam(e.target) !== e.target._tam)) return;
       cancelAnimationFrame(st.raf); st.raf = requestAnimationFrame(() => { if (st && !drag && !arr) atualizar(); });
     });

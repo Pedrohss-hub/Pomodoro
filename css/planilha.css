@@ -21,14 +21,21 @@
   .combo-op:hover, .combo-op.ativo { background: color-mix(in srgb, var(--cor) 12%, transparent); }
   .combo-op.atual { font-weight: 700; }
 
-  /* painel de configuração: ao lado em telas largas, embaixo no celular; a página abre espaço para ele */
+  /* painel de configuração: FLUTUA por cima da página (nunca muda o tamanho nem a posição de nada). Tela larga: à direita ou à esquerda (botão ⇄);
+     celular: folha embaixo. O botão de recolher deixa só a barra do título. */
   .painel { position: fixed; z-index: 40; top: 1rem; right: 1rem; bottom: 1rem; width: 22.5rem; display: flex; flex-direction: column; background: var(--card); border: 1.5px solid var(--line); border-radius: calc(1rem * var(--raio)); box-shadow: 0 18px 50px rgba(35, 32, 58, .22); }
   .painel[hidden] { display: none; }
   .painel-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; padding: 1rem 1rem .75rem; border-bottom: 1px solid var(--line); }
   .painel-titulo { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
   .painel-sub { margin: .15rem 0 0; font-size: .78rem; color: var(--soft); }
-  .painel-fechar { flex: none; width: 1.9rem; height: 1.9rem; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--soft); cursor: pointer; line-height: 1; }
-  .painel-fechar:hover { border-color: var(--ink); color: var(--ink); }
+  .painel-fechar, .painel-ic { flex: none; width: 1.9rem; height: 1.9rem; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--soft); cursor: pointer; line-height: 1; }
+  .painel-fechar:hover, .painel-ic:hover { border-color: var(--ink); color: var(--ink); }
+  .painel-ic { display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .painel-ic svg { display: block; }
+  .painel-botoes { flex: none; display: flex; gap: .35rem; }
+  .painel.recolhido { bottom: auto; max-height: none; }
+  .painel.recolhido .painel-corpo, .painel.recolhido .painel-rodape { display: none; }
+  .painel.recolhido .painel-topo { border-bottom: 0; }
   .painel-corpo { flex: 1; overflow: auto; padding: 1rem; display: grid; gap: 1rem; align-content: start; }
   .painel-rodape { display: flex; flex-wrap: wrap; gap: .5rem; padding: .75rem 1rem; border-top: 1px solid var(--line); }
   .painel-btn { padding: .5rem .9rem; border: 1.5px solid var(--ink); border-radius: calc(.6rem * var(--raio)); background: transparent; cursor: pointer; font-weight: 600; font-size: .85rem; }
@@ -41,14 +48,12 @@
   .pn-dica { margin: .3rem 0 0; font-size: .75rem; color: var(--soft); }
   .pn-erro { margin: .3rem 0 0; font-size: .75rem; font-weight: 600; color: var(--erro); }
   .editando { outline: 2px solid var(--cor); outline-offset: 3px; opacity: 1 !important; filter: none !important; }
-  body { transition: padding .2s ease; }
   @media (min-width: 70rem) {
-    body.painel-aberto { padding-right: 25rem; }
-    body.painel-aberto .ct-area.ampla { width: min(calc(94vw - 25rem), 84rem); }
+    .painel[data-lado="esquerda"] { right: auto; left: 1rem; }
 }
   @media (max-width: 69.99rem) {
     .painel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 52vh; border-radius: calc(1rem * var(--raio)) calc(1rem * var(--raio)) 0 0; }
-    body.painel-aberto { padding-bottom: 54vh; }
+    .painel-lado { display: none; }
 }
   /* subtítulo que separa grupos de campos no Painel (campo tipo "titulo") */
   .pn-secao { margin: 0; padding-top: .8rem; border-top: 1px solid var(--line); font-size: .85rem; font-weight: 600; }

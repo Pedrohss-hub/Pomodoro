@@ -2,10 +2,9 @@
   html { font-size: calc(100% * var(--escala)); }
   /* topo do site: status da conexão (canto esquerdo) | abas | botões do canto direito (histórico, editar layout, configurações) */
   .topo-global { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .5rem 1rem; margin-bottom: calc(2.5rem * var(--esp)); }
-  /* em tela larga o topo usa a mesma largura dos layouts "amplos" (toda a tela, até 84rem), em qualquer página; com o Painel aberto a largura diminui junto */
+  /* em tela larga o topo usa a mesma largura dos layouts "amplos" (toda a tela, até 84rem), em qualquer página; o Painel flutua por cima e não muda isso */
   @media (min-width: 72rem) {
     .topo-global { width: min(94vw, 84rem); position: relative; left: 50%; transform: translateX(-50%); }
-    body.painel-aberto .topo-global { width: min(calc(94vw - 25rem), 84rem); }
   }
   .topo-global .abas { margin-bottom: 0; grid-column: 2; }
   .canto-status { justify-self: start; grid-column: 1; grid-row: 1; }

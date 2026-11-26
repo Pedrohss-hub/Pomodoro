@@ -1,5 +1,7 @@
-/* Painel de configuração: o jeito ÚNICO de configurar qualquer container. Abre ao lado (ou embaixo, no celular),
-   sem cobrir o container: o que você muda vale na hora e dá para ver o resultado enquanto mexe.
+/* Painel de configuração: o jeito ÚNICO de configurar qualquer container. FLUTUA por cima da página (à direita ou à esquerda em tela larga;
+   folha embaixo no celular) e NÃO empurra nem encolhe nada: as medidas da página são as mesmas com ele aberto ou fechado.
+   Na barra do título: ⇄ muda de lado (lembra neste aparelho), − recolhe (só a barra fica) / expande, ✕ fecha.
+   O que você muda vale na hora e dá para ver o resultado enquanto mexe.
    Cada container só descreve os campos; o visual e o comportamento são sempre os mesmos.
 
      Painel.abrir({
@@ -24,17 +26,41 @@
 const Painel = (() => {
   const h = Util.h;
   let el = null, atual = null, abasCache = [];
+  let recolhido = false;               // painel recolhido (só a barra do título)? volta a expandir ao abrir outro
   const gruposAbertos = new Map();      // chave do grupo -> aberto? (lembra enquanto a página não é recarregada)
 
   function montar() {
     if (el) return;
     el = h('aside', 'painel'); el.hidden = true; el.setAttribute('aria-label', 'Configuração');
     el.innerHTML = `<div class="painel-topo"><div><h2 class="painel-titulo"></h2><p class="painel-sub"></p></div>
-      <button type="button" class="painel-fechar" aria-label="Fechar o painel" title="Fechar">✕</button></div>
+      <div class="painel-botoes"><button type="button" class="painel-ic painel-lado" aria-label="Mudar de lado" title="Mudar de lado"></button>
+      <button type="button" class="painel-ic painel-rec" aria-label="Recolher o painel" title="Recolher"></button>
+      <button type="button" class="painel-fechar" aria-label="Fechar o painel" title="Fechar">✕</button></div></div>
       <div class="painel-corpo"></div><div class="painel-rodape"></div>`;
     document.body.append(el);
+    el.querySelector('.painel-lado').onclick = () => { lado(lado() === 'direita' ? 'esquerda' : 'direita'); };
+    el.querySelector('.painel-rec').onclick = () => recolher(!recolhido);
+    lado(lado()); recolher(false);
     el.querySelector('.painel-fechar').onclick = () => fechar();       // sem repassar o evento do clique: ele seria lido como "troca" e o painel não fecharia
     document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && atual && !ev.defaultPrevented && !document.querySelector('dialog[open]')) fechar(); });
+  }
+
+  // ícones: texto fixo do código (nunca dado digitado), por isso innerHTML é seguro aqui
+  const SVG = d => '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+  const ICO = { lado: SVG('<path d="M2 5h10M9 2l3 3-3 3M12 9H2M5 6l-3 3 3 3"/>'), menos: SVG('<path d="M3 7h8"/>'), mais: SVG('<path d="M3 7h8M7 3v8"/>') };
+  // lado do painel em tela larga: 'direita' (padrão) ou 'esquerda'; guardado só neste aparelho (localStorage "pn-lado"), sem ir para o Sheets
+  function lado(novo) {
+    if (novo === undefined) { try { return localStorage.getItem('pn-lado') === 'esquerda' ? 'esquerda' : 'direita'; } catch (e) { return 'direita'; } }
+    try { localStorage.setItem('pn-lado', novo); } catch (e) { /* sem armazenamento: vale só até recarregar */ }
+    el.dataset.lado = novo;
+    const b = el.querySelector('.painel-lado'); b.innerHTML = ICO.lado;
+    b.title = b.ariaLabel = novo === 'direita' ? 'Mover para a esquerda' : 'Mover para a direita';
+  }
+  function recolher(sim) {
+    recolhido = !!sim; el.classList.toggle('recolhido', recolhido);
+    const b = el.querySelector('.painel-rec'); b.innerHTML = recolhido ? ICO.mais : ICO.menos;
+    b.title = b.ariaLabel = recolhido ? 'Expandir o painel' : 'Recolher o painel';
+    b.setAttribute('aria-expanded', String(!recolhido));
   }
 
   const carregarAbas = () => { if (!abasCache.length && Sheets.pronto()) Sheets.abas().then(d => { if (d && d.ok && Array.isArray(d.abas)) abasCache = d.abas; }).catch(() => {}); };
@@ -111,9 +137,9 @@ const Painel = (() => {
     atual = o;
     el.querySelector('.painel-titulo').textContent = o.titulo || 'Configuração';
     el.querySelector('.painel-sub').textContent = o.subtitulo || '';
-    desenhar();
-    el.hidden = false; document.body.classList.add('painel-aberto');
-    if (o.alvo) { o.alvo.classList.add('editando'); o.alvo.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    desenhar(); recolher(false);
+    el.hidden = false; document.body.classList.add('painel-aberto');      // só marca "aberto" (esconde o botão ⚙ Layouts); não muda o tamanho de nada
+    if (o.alvo) o.alvo.classList.add('editando');                          // sem rolar a página: nada pode se mexer
   }
   function fechar(troca) {
     if (!el || !atual) return;

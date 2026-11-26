@@ -7,7 +7,7 @@
    Para OUTRA área: ao entrar nela, a área ganha um contorno e uma barra mostra onde o bloco vai ficar; o bloco só muda de lugar ao soltar
    (grava "layout" e "ordem" dele e renumera as duas áreas). Esc cancela.
    Ao ligar o modo o Painel ao lado abre com os LAYOUTS da página (js/core/painel-layout.js): nome, largura, espaços, colunas, linhas e tamanho dos blocos, criar e apagar layouts.
-   Em tela pequena ele não abre sozinho (cobriria a página). Fechou o painel? O botão "⚙ Layouts" (canto de baixo, à esquerda) ou o nome do layout ("Layout: nome ⚙") abrem de novo.
+   Em tela pequena ele não abre sozinho (a folha cobre parte da página, sem empurrá-la). Fechou o painel? O botão "⚙ Layouts" (canto de baixo, à esquerda) ou o nome do layout ("Layout: nome ⚙") abrem de novo.
 
    Como usar: nada a chamar. Basta carregar este arquivo depois de roteador.js e antes de paginas.js (que chama Roteador.iniciar).
    Ele se registra com Roteador.acaoDePagina e o botão aparece sozinho, na barra da página, só onde há 2+ containers ligados.
@@ -58,7 +58,7 @@ const EditorLayout = (() => {
     });
     EditorGrade.ligar(info, () => { marcarAreas(); PainelLayout.atualizar(); });       // células, divisórias e alças (tela larga)
     info.destino.classList.add('el-editando');
-    const bl = h('button', 'el-layouts-btn', '⚙ Layouts'); bl.type = 'button'; bl.title = 'Abrir o painel de layouts'; bl.onclick = abrirLayouts;   // sempre à mão para reabrir o painel (some quando ele está aberto)
+    const bl = h('button', 'el-layouts-btn', '⚙ Layouts'); bl.type = 'button'; bl.title = 'Abrir o painel de layouts'; bl.onclick = abrirLayouts;   // sempre à mão para reabrir o painel (some quando ele está aberto; recolhido, o Painel mostra a própria barra)
     document.body.append(bl); ed.btnLayouts = bl;
     marcarAreas();
     marcarBotao(info.id, true);
