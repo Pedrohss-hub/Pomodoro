@@ -5,10 +5,12 @@ const PAGINAS = [
   { id: 'pomodoro', titulo: 'Pomodoro', fixa: 'pg-pomo', entre: 1,
     layouts: [
       { id: 'topo', tipo: 'coluna', largura: 'normal' },                  // o timer e as Sessões, na largura do site
+      { id: 'calendario', tipo: 'coluna', largura: 'ampla' },             // o calendário do mês, acima da Agenda
       { id: 'principal', tipo: 'lateral', espaco: 1, largura: 'ampla' }   // Agenda e Gráficos, em tela larga
     ],
     containers: [
       { id: 'pomodoro-fixo', tipo: 'fixo', layout: 'topo', ordem: 1, titulo: 'Timer e Sessões', alvo: '#pg-pomo > .grade' },
+      { id: 'calendario', tipo: 'calendario', layout: 'calendario', ordem: 1, titulo: 'Calendário' },   // usa os itens da Agenda (não lê a planilha)
       { id: 'agenda', tipo: 'agenda', layout: 'principal', ordem: 1, titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false },
       { id: 'graficos', tipo: 'graficos', layout: 'principal', ordem: 2, titulo: 'Gráficos de estudo', graficos: null }   // null = lista padrão (editável no ⚙ do quadro)
     ] },

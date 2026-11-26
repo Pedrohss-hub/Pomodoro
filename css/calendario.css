@@ -1,0 +1,39 @@
+/* Calendário do mês (js/containers/calendario.js). O grid onde ele fica está em layout.css.
+   Em espaço estreito (celular ou coluna lateral) os itens viram pontinhos: a regra é pela largura do próprio quadro (container query). */
+  .cal-box { container-type: inline-size; opacity: .5; filter: saturate(.45); transition: opacity .35s ease, filter .35s ease; }
+  .cal-box:hover, .cal-box:focus-within, .cal-box.em-foco { opacity: 1; filter: none; }
+  .cal-box .box-topo { flex-wrap: wrap; gap: .4rem .75rem; margin-bottom: .75rem; }
+  .cal-mes { min-width: 8.5rem; text-align: center; font-size: .95rem; }
+  .cal-semana { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .3rem; margin-bottom: .3rem; text-align: center; font-size: .72rem; font-weight: 600; color: var(--soft); }
+  .cal-grade { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .3rem; }
+  .cal-dia { display: grid; grid-template-rows: auto 1fr; align-content: start; gap: .2rem; min-width: 0; min-height: 6.2rem; padding: .35rem; border: 1.5px solid var(--line); border-radius: calc(.7rem * var(--raio)); background: var(--card); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .cal-dia:hover { border-color: var(--cor); }
+  .cal-dia:focus-visible { outline: 3px solid var(--cor); outline-offset: 2px; }
+  .cal-dia.fora { opacity: .45; }
+  .cal-num { justify-self: start; min-width: 1.5rem; padding: 0 .3rem; border-radius: 999px; text-align: center; font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.5rem; }
+  .cal-dia.hoje { border-color: var(--cor); }
+  .cal-dia.hoje .cal-num { background: var(--cor); color: var(--sobre); }
+  .cal-itens { display: grid; gap: .15rem; align-content: start; min-width: 0; }
+  .cal-item { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: .05rem .35rem; border-left: 3px solid var(--cor); border-radius: .25rem; background: color-mix(in srgb, var(--cor) 10%, var(--card)); font-size: .72rem; line-height: 1.35; }
+  .cal-item small { margin-right: .3rem; color: var(--soft); font-size: .66rem; }
+  .cal-item.imp, .cal-d-item.imp { border-left-color: #C9A227; background: color-mix(in srgb, #C9A227 18%, var(--card)); }
+  .cal-item.feita, .cal-d-item.feita .cal-d-desc { text-decoration: line-through; }
+  .cal-item.feita { opacity: .5; }
+  .cal-mais { padding-left: .35rem; color: var(--soft); font-size: .7rem; font-weight: 600; }
+  .cal-pontos { display: none; flex-wrap: wrap; gap: .2rem; align-content: start; }
+  .cal-ponto { width: .5rem; height: .5rem; border-radius: 50%; background: var(--cor); }
+  .cal-ponto.imp { background: #C9A227; }
+  .cal-ponto.feita { opacity: .35; }
+  .cal-pontos small { color: var(--soft); font-size: .6rem; line-height: .5rem; }
+  @container (max-width: 40rem) {
+    .cal-dia { min-height: 3.4rem; padding: .25rem; }
+    .cal-itens { display: none; }
+    .cal-pontos { display: flex; }
+    .cal-mes { min-width: 0; flex: 1 1 100%; order: -1; }
+  }
+  /* pop-up do dia */
+  .cal-d-lista { display: grid; gap: .5rem; margin: 1rem 0 .5rem; max-height: 60vh; overflow: auto; }
+  .cal-d-item { padding: .5rem .7rem; border: 1.5px solid var(--line); border-left: 4px solid var(--cor); border-radius: calc(.7rem * var(--raio)); background: var(--card); }
+  .cal-d-item.feita { opacity: .6; }
+  .cal-d-desc { font-weight: 600; font-size: .95rem; overflow-wrap: anywhere; }
+  .cal-d-meta { display: flex; flex-wrap: wrap; gap: .2rem .6rem; margin-top: .15rem; color: var(--soft); font-size: .78rem; }
