@@ -17,6 +17,7 @@
    O painel de layouts (js/core/painel-layout.js) usa, enquanto o modo está ligado e a tela é larga:
      EditorGrade.dados(idDoLayout)                      a grade de agora: { livre, colunas, linhas, blocos, px: { c, l }, larguraPx } (ou null)
      EditorGrade.tamanho(idDoLayout, nCol, nLin)        muda quantas colunas e linhas; só tira as VAZIAS do fim. Devolve { ok, msg }
+     EditorGrade.estrutura(idDoLayout, colunas)         troca TODAS as colunas por uma lista pronta (ex.: [1, 2]); só tira colunas VAZIAS. Devolve { ok, msg }
      EditorGrade.tamanhoBloco(idDoLayout, idBloco, w, h) muda quantas colunas/linhas o bloco ocupa (nunca encosta em outro). Devolve { ok, msg }
      EditorGrade.previa(idDoLayout, 'c' | 'l', lista)    mostra ao vivo uma lista nova de colunas ou linhas, sem guardar
      EditorGrade.definir(idDoLayout, 'c' | 'l', lista)   guarda a lista nova de colunas ou linhas (layout antigo vira grade livre)
@@ -392,6 +393,15 @@ const EditorGrade = (() => {
     gravar(area, m, false);
     return { ok: true };
   }
+  function estrutura(lid, cols) {                  // atalho de estrutura: as colunas viram a lista dada (as linhas ficam como estão)
+    const area = st && larga() ? areaDe(lid) : null, m = area && modeloReal(area);
+    if (!m) return { ok: false, msg: 'A grade só pode ser editada em tela larga.' };
+    const nC = limitar(cols.length, 1, MAX_COL);
+    for (let c = m.colunas.length; c > nC; c--) if (!colunaVazia(m, c)) return { ok: false, msg: 'A coluna ' + c + ' tem um bloco. Mova o bloco antes de usar esta estrutura.' };
+    m.colunas = cols.slice(0, nC);
+    gravar(area, m, false);
+    return { ok: true };
+  }
   function tamanhoBloco(lid, id, w, hh) {
     const area = st && larga() ? areaDe(lid) : null, m = area && modeloReal(area), b = m && m.blocos.find(x => x.id === id);
     if (!b) return { ok: false, msg: 'Não achei este bloco.' };
@@ -444,5 +454,5 @@ const EditorGrade = (() => {
     return mexeu;
   }
 
-  return { ligar, desligar, atualizar, larga, dados, tamanho, tamanhoBloco, previa, definir, comecarArrasto, sobre, limparSobre, soltarArrasto, cancelarArrasto };
+  return { ligar, desligar, atualizar, larga, dados, tamanho, estrutura, tamanhoBloco, previa, definir, comecarArrasto, sobre, limparSobre, soltarArrasto, cancelarArrasto };
 })();

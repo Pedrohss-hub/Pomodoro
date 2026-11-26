@@ -5,6 +5,7 @@
      Largura                 Ampla (aproveita a tela larga) | Normal (a largura do site)
      Espaço entre os blocos  campo "− valor +" com deslizante (1 = normal; 0 = sem espaço); mostra o espaço real em px
      Colunas × linhas        seletor de células: passe o mouse e clique. Só tira colunas/linhas VAZIAS (as do fim); se tiver bloco, explica
+     Estruturas prontas      miniaturas (50/50, 33/66, 25/50/25...): um clique troca as colunas; só tira colunas VAZIAS (se tiver bloco, explica)
      Largura de cada coluna  um campo por coluna, com unidade: fr (parte do que sobra), rem, px ou %
      Altura de cada linha    um campo por linha: auto (a do conteúdo), fr, rem ou px (rem e px = altura MÍNIMA)
      Tamanho de cada bloco   seletor de células: quantas colunas e linhas o bloco ocupa (nunca encosta em outro bloco)
@@ -26,6 +27,8 @@ const PainelLayout = (() => {
   const UN_COLUNA = { fr: { min: .1, max: 20, passo: .5, slider: [.5, 6] }, rem: { min: 2, max: 80, passo: 1, slider: [4, 60] }, px: { min: 40, max: 2000, passo: 10, slider: [50, 800] }, '%': { min: 5, max: 100, passo: 5, slider: [5, 100] } };
   const UN_LINHA = { auto: { auto: true }, fr: UN_COLUNA.fr, rem: { min: 1, max: 80, passo: 1, slider: [2, 40] }, px: { min: 20, max: 2000, passo: 10, slider: [30, 600] } };
   const UN_ESPACO = { '×': { min: 0, max: 5, passo: .25, slider: [0, 3] } };
+  // miniaturas de estrutura: lista de colunas em fr (só atalho: depois dá para ajustar cada coluna)
+  const ESTRUTURAS = [[1], [1, 1], [1, 2], [2, 1], [1, 3], [3, 1], [1, 2, 1], [1, 1, 1], [1, 1, 1, 1]];
   const UNID = /^(\d+(?:\.\d+)?)(rem|px|%|fr)$/;
   let ctx = null;                  // { pid, titulo, contar, blocos, area, destino, aoAlterar }
   let campos = [];                 // a lista que o Painel está mostrando (trocada por dentro, sem criar outra)
@@ -64,6 +67,24 @@ const PainelLayout = (() => {
       info: () => { const x = EditorGrade.dados(lid), v = x && (eixo === 'c' ? x.px.c : x.px.l)[i]; return v ? '= ' + Math.round(v) + ' px' : ''; } });   // o tamanho real de agora
   }
 
+  const rotuloEstrutura = c => { const t = c.reduce((a, b) => a + b, 0); return c.length === 1 ? '1 coluna' : c.length > 2 && c.every(x => x === c[0]) ? c.length + ' iguais' : c.map(x => Math.round(x / t * 100)).join(' / '); };
+  const mesma = (a, b) => a.length === b.length && a.every((v, i) => typeof v === 'number' && Math.abs(v / a.reduce((x, y) => x + (typeof y === 'number' ? y : 0), 0) - b[i] / b.reduce((x, y) => x + y, 0)) < .001);
+
+  function estruturasUI(l, d) {                      // miniaturas: um clique troca as colunas
+    const caixa = h('div', 'es'), grade = h('div', 'es-grade'), msg = h('p', 'pn-erro'); msg.hidden = true;
+    ESTRUTURAS.forEach((c, k) => {
+      const b = h('button', 'es-op' + (mesma(d.colunas, c) ? ' atual' : '')), mini = h('span', 'es-mini'), nome = rotuloEstrutura(c);
+      b.type = 'button'; b.title = nome; b.setAttribute('aria-label', 'Estrutura ' + nome); b.dataset.foco = 'est:' + l.id + ':' + k;
+      mini.style.gridTemplateColumns = c.map(x => x + 'fr').join(' ');
+      c.forEach(() => mini.append(h('i', 'es-col')));
+      b.append(mini, h('span', 'es-rot', nome));
+      b.onclick = () => { const r = EditorGrade.estrutura(l.id, c); msg.textContent = r.ok ? '' : r.msg; msg.hidden = r.ok; };
+      grade.append(b);
+    });
+    caixa.append(grade, msg);
+    return caixa;
+  }
+
   function gradeUI(l) {
     const caixa = h('div', 'pl-grade'), d = EditorGrade.dados(l.id);
     if (!d) { caixa.append(h('p', 'pn-dica', 'A grade (colunas, linhas e blocos) só se edita em tela larga, a partir de 72 rem. Em tela estreita o layout vira uma coluna só.')); return caixa; }
@@ -71,6 +92,7 @@ const PainelLayout = (() => {
     caixa.append(h('h4', 'pn-sub', 'Colunas × linhas'),
       Controles.celulas({ colunas: MAX.c, linhas: Math.max(8, nL), atual: { c: nC, l: nL }, nome: 'Colunas e linhas do layout', id: 'cel:' + l.id,
         aoEscolher: (c, lh) => { const r = EditorGrade.tamanho(l.id, c, lh); return r.ok ? undefined : r.msg; } }));
+    caixa.append(h('h4', 'pn-sub', 'Estruturas prontas'), estruturasUI(l, d));
     caixa.append(h('h4', 'pn-sub', 'Largura de cada coluna'));
     d.colunas.forEach((_, i) => caixa.append(trilha(l.id, 'c', i, d)));
     caixa.append(h('h4', 'pn-sub', 'Altura de cada linha'));
