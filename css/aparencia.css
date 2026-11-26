@@ -1,9 +1,22 @@
 /* Tamanho do texto, botão e painel de Aparência. */
   html { font-size: calc(100% * var(--escala)); }
-  .topo-global { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .5rem 1rem; margin-bottom: 1.25rem; }
-  .topo-global .abas { margin-bottom: 0; }
-  .ap-abrir { display: inline-flex; align-items: center; gap: .45rem; padding: calc(.5rem * var(--btn)) calc(1rem * var(--btn)); font-size: calc(1em * var(--btn)); border: 1.5px solid var(--line); border-radius: calc(999px * var(--raio)); background: var(--card); color: var(--ink); font-weight: 600; cursor: pointer; }
-  .ap-abrir:hover { border-color: var(--cor); }
+  /* topo do site: status da conexão (canto esquerdo) | abas | botões do canto direito (histórico, editar layout, configurações) */
+  .topo-global { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .5rem 1rem; margin-bottom: 1.25rem; }
+  .topo-global .abas { margin-bottom: 0; grid-column: 2; }
+  .canto-status { justify-self: start; grid-column: 1; grid-row: 1; }
+  .cantos { display: flex; justify-content: flex-end; gap: .4rem; grid-column: 3; grid-row: 1; }
+  .canto-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; width: calc(2.4rem * var(--btn)); height: calc(2.4rem * var(--btn)); padding: 0; border: 1.5px solid var(--line); border-radius: calc(999px * var(--raio)); background: var(--card); color: var(--soft); cursor: pointer; }
+  .canto-btn svg { display: block; }
+  .canto-btn[hidden] { display: none; }
+  .canto-btn:hover { border-color: var(--cor); color: var(--ink); }
+  .canto-btn.alerta::after { content: ''; position: absolute; top: -2px; right: -2px; width: .65rem; height: .65rem; border-radius: 50%; background: var(--erro); }
+  .canto-btn.teste-ligado::after { content: ''; position: absolute; top: -2px; right: -2px; width: .65rem; height: .65rem; border-radius: 50%; background: #FFD479; border: 1.5px solid #E0A526; }
+  .canto-btn.el-botao[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  @media (max-width: 34rem) {      /* celular: as abas descem para uma linha própria */
+    .topo-global { grid-template-columns: 1fr 1fr; }
+    .topo-global .abas { grid-column: 1 / -1; grid-row: 2; }
+    .cantos { grid-column: 2; }
+  }
   #dlg-aparencia { position: fixed; inset: 1rem 1rem 1rem auto; margin: 0; z-index: 30; width: min(25rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; box-shadow: 0 12px 40px rgba(35, 32, 58, .3); }
   #dlg-aparencia details { margin-top: .75rem; }
   #dlg-aparencia .dica { margin: .4rem 0 0; }

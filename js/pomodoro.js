@@ -1,4 +1,7 @@
-/* Pomodoro: cronômetro, sessões, fila de envio, conexão com a planilha, categorias, console. Também define utilitários que os outros arquivos usam ($, LS, cfg, avisar, mostrar, chamarScript). */
+/* Pomodoro: cronômetro, sessões, fila de envio, conexão com a planilha (botão de status no canto), categorias e mensagens.
+   Mensagens: mostrar(tipo, texto, obj, silencioso) guarda na lista "Mensagens recentes" (sino no canto, últimas 50, só nesta aba)
+   e, exceto tipo 'info' ou silencioso, mostra um aviso temporário (#toast). avisar(texto) = aviso para o usuário.
+   Também define utilitários que os outros arquivos usam ($, LS, cfg, avisar, mostrar, chamarScript). */
   const $ = s => document.querySelector(s);
   const LS = {
     get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
@@ -145,17 +148,19 @@
     const n = log.filter(e => e.status === 'pendente' || e.status === 'enviando').length;
     $('#status').dataset.st = conexao;
     $('#st-icone').innerHTML = ICONES[conexao];
-    $('#st-texto').textContent = {
+    // o botão é só o símbolo: o estado vai no aria-label e na dica (title)
+    const rotulo = {
       on: n ? 'Enviando…' : 'Conectado',
       off: 'Sem conexão' + (n ? ' (' + n + ' na fila)' : ''),
       config: 'Configurar',
       ver: 'Verificando…'
     }[conexao];
-    $('#status').title = {
-      on: 'Conectado à planilha. Clique para verificar de novo.',
-      off: 'Sem conexão. As sessões ficam guardadas e são enviadas sozinhas quando voltar.',
+    $('#status').setAttribute('aria-label', rotulo);
+    $('#status').title = rotulo + '. ' + {
+      on: 'Clique para verificar a conexão com a planilha de novo.',
+      off: 'As sessões ficam guardadas e são enviadas sozinhas quando voltar.',
       config: 'Configure a URL e o token nas configurações.',
-      ver: 'Verificando a conexão…'
+      ver: 'Aguarde.'
     }[conexao];
   }
 
@@ -202,7 +207,9 @@
     ul.scrollTop = y;
   }
 
-  function mostrar(tipo, texto, obj) {
+  // Mensagens: vão para a lista "Mensagens recentes" (sino) e, fora as 'info' e as silenciosas, aparecem um instante como aviso
+  const MAX_MENSAGENS = 50;
+  function mostrar(tipo, texto, obj, silencioso) {
     const p = document.createElement('p');
     p.className = tipo;
     const t = document.createElement('span');
@@ -211,9 +218,11 @@
     p.append(t, texto + (obj ? '\n' + JSON.stringify(obj, null, 2) : ''));
     const c = $('#console');
     c.append(p);
+    while (c.children.length > MAX_MENSAGENS) c.firstElementChild.remove();
     c.scrollTop = c.scrollHeight;
-    if (tipo === 'erro' && !$('#dlg-console').open) $('#btn-console').classList.add('alerta');
+    if (tipo === 'erro' && !$('#dlg-console').open) $('#btn-historico').classList.add('alerta');   // erro que passou sem você ver
     (tipo === 'erro' ? console.error : console.log)(texto, obj ?? '');
+    if (!silencioso && tipo !== 'info') aviso(tipo, texto);
   }
 
   const UM_DIA = 24 * 60 * 60 * 1000;
@@ -331,7 +340,7 @@
       LS.set('pomo-cats', categorias);
       renderCategorias();
       if (manual) avisar('Categorias atualizadas (' + categorias.length + ').');
-      else mostrar('ok', 'Categorias carregadas: ' + categorias.join(', '));
+      else mostrar('ok', 'Categorias carregadas: ' + categorias.join(', '), null, true);
     } catch (err) {
       const msg = 'Não consegui carregar as categorias: ' + (err instanceof SyntaxError ? 'resposta inesperada do script (confira a URL e se a implantação é a versão nova)' : err.message);
       if (manual) avisar(msg); else mostrar('erro', msg);
@@ -359,13 +368,13 @@
   }
 
   let toastTimer;
-  function avisar(texto) {
+  function aviso(tipo, texto) {                       // aviso temporário no canto da tela (só a 1ª linha; o resto fica na lista)
     const t = $('#toast');
-    t.textContent = texto; t.hidden = false;
+    t.textContent = String(texto).split('\n')[0]; t.dataset.tipo = tipo; t.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { t.hidden = true; }, 4500);
-    mostrar('aviso', texto);
+    toastTimer = setTimeout(() => { t.hidden = true; }, tipo === 'erro' ? 7000 : 4500);
   }
+  function avisar(texto) { mostrar('aviso', texto); }
 
   function registrar(focadoMs, fim = new Date()) {
     if (focadoMs < minimoMs()) { avisar('Sessão com menos de ' + (cfg.teste ? '1 segundo' : '1 minuto') + ' não é enviada.'); return; }
@@ -462,8 +471,13 @@
   document.querySelectorAll('.modos button').forEach(b => b.onclick = () => { SOM.trocar(); zerar(b.dataset.modo); });
 
   $('#url').value = cfg.url;
-  $('#teste').checked = !!cfg.teste;
-  $('#selo-teste').classList.toggle('ligado', !!cfg.teste);
+  // modo teste: a chave fica em Configurações; com ele ligado a engrenagem ganha um pontinho amarelo (para não esquecer)
+  const marcarTeste = () => {
+    $('#selo-teste').classList.toggle('ligado', !!cfg.teste);
+    $('#btn-config').classList.toggle('teste-ligado', !!cfg.teste);
+    $('#btn-config').title = cfg.teste ? 'Configurações (modo teste ligado)' : 'Configurações';
+  };
+  $('#teste').checked = !!cfg.teste; marcarTeste();
   $('#token').value = cfg.token;
   ['foco', 'curta', 'longa'].forEach(k => $('#d-' + k).value = cfg[k]);
   const salvarCfg = () => {
@@ -475,10 +489,10 @@
     verificarEEnviar();
   };
   ['#url', '#token', '#d-foco', '#d-curta', '#d-longa'].forEach(s => $(s).onchange = salvarCfg);
-  $('#btn-console').onclick = () => {
+  $('#btn-historico').onclick = () => {
     const d = $('#dlg-console');
     if (d.open) { d.close(); return; }
-    $('#btn-console').classList.remove('alerta');
+    $('#btn-historico').classList.remove('alerta');
     d.show();
     $('#console').scrollTop = $('#console').scrollHeight;
   };
@@ -495,13 +509,13 @@
   limparAntigas();
   renderLog();
   if ((!cfg.url || !cfg.token) && location.hash !== '#grade') $('#dlg-config').showModal();
-  mostrar('info', 'Console pronto. Os envios aparecem aqui.');
+  mostrar('info', 'Mensagens prontas. Os envios e avisos aparecem aqui.');
 
   $('#status').onclick = verificarEEnviar;
   $('#teste').onchange = () => {
     cfg.teste = $('#teste').checked;
     LS.set('pomo-cfg', cfg);
-    $('#selo-teste').classList.toggle('ligado', cfg.teste);
+    marcarTeste();
     mostrar('info', cfg.teste ? 'Modo teste ligado: sessões a partir de 1 segundo são enviadas.' : 'Modo teste desligado: mínimo de 1 minuto.');
   };
   $('#categoria').onchange = e => LS.set('pomo-cat', e.target.value);

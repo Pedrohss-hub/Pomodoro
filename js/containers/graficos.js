@@ -1,5 +1,5 @@
 /* Tipo de container "graficos": gráficos de barras, linhas e histograma lidos de intervalos da planilha, desenhados em SVG,
-   com período anterior apagado, dia da semana, marcas de itens "Imp" da agenda, cache e janela ampliada (botão Gráficos do topo).
+   com período anterior apagado, dia da semana, marcas de itens "Imp" da agenda e cache.
    Em cada gráfico de linhas, "frente" ('liq' padrão | 'per') escolhe a linha desenhada por cima.
    Configuração (em js/paginas.js): { titulo, graficos: [lista] } (null = lista padrão; o ⚙ do quadro edita a lista). */
 Containers.registrar('graficos', ctx => {
@@ -238,16 +238,9 @@ Containers.registrar('graficos', ctx => {
     </div>
     <p class="status-linha gf-status" role="status"></p>
     <div class="gf-grade"></div>`;
-  const dlg = Util.dialogo('gf-dlg', `
-    <div class="dlg-corpo">
-      <div class="dlg-topo"><h2>Gráficos de estudo</h2><button type="button" class="fechar">Fechar</button></div>
-      <div class="gf-barra"><button type="button" class="mini gf-atualizar" title="Atualizar gráficos" aria-label="Atualizar gráficos">↻</button><span class="gf-status" role="status"></span></div>
-      <div class="gf-grade gf-popup"></div>
-    </div>`);
-  const q = x => raiz.querySelector(x), grade = q('.gf-grade'), popup = dlg.querySelector('.gf-popup');
+  const q = x => raiz.querySelector(x), grade = q('.gf-grade');
   q('.gf-titulo').textContent = ctx.def().titulo || 'Gráficos de estudo';
-  const alvos = () => [ctx.visivel() ? grade : null, dlg.open ? popup : null].filter(Boolean);
-  const visivel = () => alvos().length > 0;
+  const visivel = () => ctx.visivel();
 
   function renderizar(c) {
     (c._cards || []).forEach(x => x.desligar());
@@ -257,11 +250,11 @@ Containers.registrar('graficos', ctx => {
     c._cards.forEach(x => x.atualizar());
   }
   document.addEventListener('agenda-atualizada', () => renderizarTudo());   // a agenda chegou ou mudou: remarca os dias
-  function renderizarTudo() { alvos().forEach(renderizar); rodape(); }
+  function renderizarTudo() { if (visivel()) renderizar(grade); rodape(); }
 
   function rodape() {
     const t = Util.textoAtualizado(estado);
-    [...raiz.querySelectorAll('.gf-status'), ...dlg.querySelectorAll('.gf-status')].forEach(e => { e.textContent = t; });
+    raiz.querySelectorAll('.gf-status').forEach(e => { e.textContent = t; });
   }
 
   async function carregar(forcar) {
@@ -291,9 +284,7 @@ Containers.registrar('graficos', ctx => {
     } finally { estado.carregando = false; renderizarTudo(); }
   }
 
-  function abrirPopup() { dlg.showModal(); requestAnimationFrame(() => { renderizarTudo(); carregar(); }); }
-  dlg.addEventListener('close', () => { (popup._cards || []).forEach(x => x.desligar()); popup._cards = []; popup.replaceChildren(); });
-  [raiz, dlg].forEach(e => e.querySelectorAll('.gf-atualizar').forEach(b => b.onclick = () => carregar(true)));
+  raiz.querySelectorAll('.gf-atualizar').forEach(b => b.onclick = () => carregar(true));
   setInterval(rodape, 30000);
 
   // avisos de fora (ver Util.avisar): o tema mudou / uma sessão foi gravada na planilha
@@ -382,7 +373,6 @@ Containers.registrar('graficos', ctx => {
 
   return {
     raiz,
-    acoes: [{ rotulo: 'Gráficos', dica: 'Abrir os gráficos numa janela ampliada', fazer: abrirPopup }],     // vira um botão na barra da página
     iniciar() {
       renderizarTudo(); carregar();
       // "no nível": o quadro fica nítido quando o topo dele passa de ~55% da altura da tela

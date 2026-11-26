@@ -1,4 +1,5 @@
 /* Editor de layout: o botão "Editar layout" da barra de cada página que tem 2 ou mais containers.
+   O botão fica no canto do site, ao lado da engrenagem, só com o símbolo (aria-label e dica explicam); ligado, vira um ✓ em fundo cheio.
    Ligado, cada container ganha uma alça (⋮⋮ + o título) presa à borda de cima; arraste pela alça para outra posição da fila.
    Os outros se reorganizam na hora (só o style.order muda, o DOM não é mexido). Ao soltar, a nova ordem (1..n) é guardada
    com Containers.ajustar (navegador + Sheets, como qualquer ajuste) e o Roteador.reaplicar() refaz a tela a partir dela.
@@ -10,7 +11,7 @@
 
    Regras:  - só troca a posição na fila (esquerda→direita, de cima para baixo); não cria células vazias nem linhas duplas
             - mouse e toque (pointer events); perto da borda de cima/baixo da tela a página rola sozinha
-            - Esc cancela o arrastar (volta como estava); trocar de página ou clicar em "Concluir layout" sai do modo
+            - Esc cancela o arrastar (volta como estava); trocar de página ou clicar no botão de novo (✓ "Concluir layout") sai do modo
             - fora do modo, nada muda: alça e classes só existem enquanto ele está ligado
    Estilo: css/layout.css (classes el-*). Não usa a classe .editando, que é do Painel. */
 const EditorLayout = (() => {
@@ -18,7 +19,11 @@ const EditorLayout = (() => {
   const MOVE_MIN = 5;      // px que o ponteiro precisa andar para começar a arrastar (evita arrastar sem querer)
   const ZONA = 72;         // px da borda de cima/baixo da tela onde a página rola sozinha
   const HISTERESE = 12;    // px (na página) que o ponteiro anda entre uma troca e outra: evita ficar trocando de ida e volta
-  const botoes = new Map();  // id da página -> botão da barra
+  const botoes = new Map();  // id da página -> botão do canto
+  const SVG = c => '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + c + '</svg>';
+  const ICONE_EDITAR = SVG('<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>');
+  const ICONE_PRONTO = SVG('<path d="M20 6 9 17l-5-5"/>');
+  const DICA_EDITAR = 'Editar layout: arrastar os blocos desta página para outra posição';
   let ed = null;             // modo ligado: { info, fila: [{ id, raiz }] na ordem visual, alcas: [] }
   let arr = null;            // arrastar em andamento
 
@@ -58,7 +63,9 @@ const EditorLayout = (() => {
 
   function marcarBotao(id, ligado) {
     const b = botoes.get(id); if (!b) return;
-    b.textContent = ligado ? 'Concluir layout' : 'Editar layout';
+    b.innerHTML = ligado ? ICONE_PRONTO : ICONE_EDITAR;          // só o símbolo; o ✓ em fundo cheio mostra que o modo está ligado
+    b.title = ligado ? 'Concluir layout (sair do modo de edição)' : DICA_EDITAR;
+    b.setAttribute('aria-label', ligado ? 'Concluir layout' : 'Editar layout');
     b.setAttribute('aria-pressed', String(ligado));
   }
 
@@ -143,7 +150,7 @@ const EditorLayout = (() => {
 
   /* ---------- o botão da barra ---------- */
   Roteador.acaoDePagina(info => info.itens.length < 2 ? null : {
-    rotulo: 'Editar layout', dica: 'Arrastar os blocos desta página para outra posição',
+    rotulo: 'Editar layout', dica: DICA_EDITAR, canto: true, icone: ICONE_EDITAR,
     fazer: () => { if (ed && ed.info.id === info.id) sair(); else entrar(info); },
     botao: b => { botoes.set(info.id, b); b.setAttribute('aria-pressed', 'false'); b.classList.add('el-botao'); }
   });

@@ -19,7 +19,6 @@
   .gf-tip-l { display: flex; align-items: center; gap: .35rem; }
   .gf-msg { margin: .5rem 0; color: var(--soft); font-size: .85rem; overflow-wrap: anywhere; }
   .gf-msg.erro { color: var(--erro); font-weight: 600; }
-  .gf-dlg { width: min(72rem, 96vw); max-width: none; max-height: 92vh; overflow: auto; }
   .gf-cfg-item { display: grid; gap: .4rem; padding: .6rem 0; border-bottom: 1px solid var(--line); }
   .gf-cfg-l1 { display: grid; grid-template-columns: auto 1fr auto auto auto; gap: .5rem; align-items: center; }
   .gf-cfg-l2 { display: grid; grid-template-columns: 7rem 1fr 1fr; gap: .5rem; }
@@ -30,7 +29,7 @@
   .gf-cfg-item input[type="text"] { width: 100%; }
 
   /* colunas pela largura do próprio espaço (seção ou janela); o gráfico que sobra no fim fica centralizado */
-  .gf-box, .gf-dlg .dlg-corpo { container-type: inline-size; }
+  .gf-box { container-type: inline-size; }
   @container (min-width: 46rem) {
     .gf-grade { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .gf-grade > .gf-card { grid-column: span 2; }
@@ -55,6 +54,5 @@
   .gf-alca:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
   .gf-editar { flex: none; width: 1.7rem; height: 1.7rem; padding: 0; border: 1.5px solid var(--line); border-radius: 50%; background: transparent; color: var(--soft); cursor: pointer; font-size: .8rem; line-height: 1; }
   .gf-editar:hover { border-color: var(--cor); color: var(--cor); }
-  .gf-popup .gf-alca, .gf-popup .gf-editar { display: none; }
   .gf-card.arrastando { opacity: .6; box-shadow: 0 10px 28px rgba(35, 32, 58, .25); }
   body.arrastando-gf { cursor: grabbing; user-select: none; -webkit-user-select: none; }

@@ -14,10 +14,13 @@
      Mudou algum desses valores com Containers.ajustar(...)? Chame Roteador.reaplicar() para a tela refletir.
    O endereço da página é o #id (ex.: #grade). Sem endereço conhecido, abre a primeira página.
    Botões da barra da página (o [data-acoes] do index.html; nas páginas criadas aqui a barra nasce sozinha). Duas origens:
-     - de um CONTAINER: ele devolve  acoes: [{ rotulo, dica, fazer }]  (ex.: "Gráficos");
+     - de um CONTAINER: ele devolve  acoes: [{ rotulo, dica, fazer }]  (nenhum container usa isso hoje);
      - da PÁGINA (não é de um container): quem quiser chama  Roteador.acaoDePagina(info => acao | nada)  antes do iniciar().
        A função roda uma vez por página montada e recebe  info = { id, el, destino, itens: [{ id, raiz }] }  (só os containers ligados);
-       devolve  { rotulo, dica, fazer, botao }  para ganhar um botão naquela página, ou nada. "botao" (opcional) recebe o botão criado.
+       devolve  { rotulo, dica, fazer, botao, canto, icone }  para ganhar um botão naquela página, ou nada. "botao" (opcional) recebe o botão criado.
+       Com  canto: true  o botão vai para o canto do site (o [data-cantos] do index.html, ao lado da engrenagem) em vez da barra da página;
+       "icone" (um <svg> escrito no código) o deixa só com o símbolo, e "rotulo"/"dica" viram o aria-label e a dica (title).
+       Botões de canto são um por página, mas só o da página aberta aparece.
        Exemplo: o js/core/editor-layout.js ("Editar layout"). Os botões de containers vêm primeiro, depois os de página.
    Carregue depois de util.js e containers.js; quem chama Roteador.iniciar(PAGINAS) é o js/paginas.js, por último. */
 const Roteador = (() => {
@@ -45,6 +48,7 @@ const Roteador = (() => {
     ligadas.forEach(p => { els[p.id].hidden = p.id !== atualId; });
     const pg = ligadas.find(p => p.id === atualId);
     document.querySelector('main').classList.toggle('larga', !!(pg && pg.larga));
+    document.querySelectorAll('[data-cantos] [data-pg]').forEach(b => { b.hidden = b.dataset.pg !== atualId; });   // botões de canto: só o da página aberta
     document.querySelectorAll('.abas button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pg === atualId)));
     Containers.paginaMudou();                 // avisa os containers: quem ficou visível se atualiza
   }
@@ -70,12 +74,24 @@ const Roteador = (() => {
   // refaz layout, ordem e largura de todas as páginas (use depois de mudar algo com Containers.ajustar)
   function reaplicar() { montadas.forEach(m => { const modelo = aplicarLayout(m.p, m.destino); m.itens.forEach(it => posicionar(it, modelo)); }); }
 
-  // botões que os containers pedem para a barra da página (ex.: "Gráficos")
-  function colocarAcoes(el, acoes) {
+  // botões da barra da página, ou do canto do site (canto: true); ver o comentário do topo
+  function colocarAcoes(el, acoes, pid) {
     if (!acoes.length) return;
-    let slot = el.querySelector('[data-acoes]');
-    if (!slot) { const barra = h('div', 'barra'); slot = h('div', 'barra-dir'); barra.append(slot); el.prepend(barra); }
-    acoes.forEach(a => { const b = h('button', null, a.rotulo); b.type = 'button'; if (a.dica) b.title = a.dica; b.onclick = a.fazer; slot.append(b); if (a.botao) a.botao(b); });
+    const canto = document.querySelector('[data-cantos]');
+    let slot = null;
+    acoes.forEach(a => {
+      const noCanto = !!(a.canto && canto);
+      if (!noCanto && !slot) {
+        slot = el.querySelector('[data-acoes]');
+        if (!slot) { const barra = h('div', 'barra'); slot = h('div', 'barra-dir'); barra.append(slot); el.prepend(barra); }
+      }
+      const b = h('button', a.icone ? 'canto-btn' : null, a.icone ? null : a.rotulo); b.type = 'button';
+      if (a.icone) { b.innerHTML = a.icone; b.setAttribute('aria-label', a.rotulo); }        // o ícone é texto fixo do código
+      if (a.dica || a.icone) b.title = a.dica || a.rotulo;
+      b.onclick = a.fazer;
+      if (noCanto) { b.dataset.pg = pid; b.hidden = pid !== atualId; canto.append(b); } else slot.append(b);
+      if (a.botao) a.botao(b);
+    });
   }
 
   // registra quem oferece um botão da PÁGINA (não de um container); ver o comentário do topo
@@ -116,7 +132,7 @@ const Roteador = (() => {
       montadas.push(reg);
       const info = { id: p.id, el: els[p.id], destino, itens: reg.itens.map(it => ({ id: it.def.id, raiz: it.inst.raiz })) };
       provedores.forEach(fn => { try { const a = fn(info); if (a) acoes.push(a); } catch (err) { console.error('botão de página falhou (' + p.id + '):', err); } });
-      colocarAcoes(els[p.id], acoes);
+      colocarAcoes(els[p.id], acoes, p.id);
     });
 
     window.addEventListener('hashchange', mostrar);

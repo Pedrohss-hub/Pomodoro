@@ -14,7 +14,6 @@
 
   /* Modo "Editar layout" (js/core/editor-layout.js): só existe enquanto o modo está ligado; fora dele nada disto vale.
      A alça fica por cima da borda de cima (position: absolute): não muda o tamanho de nada, então os gráficos não redesenham. */
-  .barra .el-botao[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
   .painel-estudo.el-editando > .box { position: relative; opacity: 1; filter: none; outline: 2px dashed var(--cor); outline-offset: 3px; }
   .painel-estudo.el-editando > .box.editando { outline-style: solid; }
   .painel-estudo.el-editando > .box.el-arrastado { opacity: .45; }

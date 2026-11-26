@@ -91,6 +91,7 @@
   };
   q('#ap-restaurar').onclick = () => { if (confirm('Voltar todas as cores, fonte e medidas ao padrão?')) { T.restaurar(); sincronizar(); } };
 
-  q('#btn-aparencia').onclick = () => { if (dlg.open) dlg.close(); else { sincronizar(); dlg.show(); } };
+  // o botão fica dentro de Configurações (janela modal): fecha ela e abre o painel de Aparência ao lado
+  q('#btn-aparencia').onclick = () => { const c = q('#dlg-config'); if (c && c.open) c.close(); sincronizar(); dlg.show(); };
   sincronizar();
 })();
