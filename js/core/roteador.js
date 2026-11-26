@@ -7,8 +7,9 @@
    - larga: true     a página usa a largura grande (a Grade usa).
    - destino         (opcional) onde os containers entram dentro da página; o padrão é ".painel-estudo".
    - layouts: [ { id, tipo, espaco, largura } ]   as ÁREAS da página, de cima para baixo. Cada container pertence a uma (campo "layout" dele).
-        id       nome da área (letras, números, - ou _)
-        tipo     'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'lateral' (coluna estreita de 22rem + o resto)
+        id       identificador interno da área (letras, números, - ou _); não aparece na tela e não muda
+        nome     (opcional) o nome que você vê na tela; livre (espaços e acentos valem). Sem nome, aparece o id. Muda-se no Painel de layouts
+        tipo     'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'quatro' | 'cinco' | 'seis' | 'lateral' (coluna estreita de 22rem + o resto)
         espaco   multiplicador do espaço entre os blocos DENTRO da área (1 = normal, 0.5 = metade, 2 = dobro); soma-se ao ajuste geral de Aparência
         largura  'ampla' (o padrão: largura grande a partir de 72rem) | 'normal' (a largura do site)
         pilha    (só em 'lateral' e 'duas', a partir de 72rem) quantos blocos ficam EMPILHADOS na 1ª coluna (1 = nenhum, o padrão); o bloco seguinte
@@ -43,6 +44,9 @@ const Roteador = (() => {
     coluna:  { n: 1, colunas: 'minmax(0, 1fr)' },
     duas:    { n: 2, colunas: 'repeat(2, minmax(0, 1fr))' },
     tres:    { n: 3, colunas: 'repeat(3, minmax(0, 1fr))' },
+    quatro:  { n: 4, colunas: 'repeat(4, minmax(0, 1fr))' },
+    cinco:   { n: 5, colunas: 'repeat(5, minmax(0, 1fr))' },
+    seis:    { n: 6, colunas: 'repeat(6, minmax(0, 1fr))' },
     lateral: { n: 2, colunas: '22rem minmax(0, 1fr)' }
   };
   const CHAVE = 'paginas';    // nome dos ajustes de páginas no Armazém (navegador + Sheets): { idDaPagina: { layouts, entre } }
@@ -163,7 +167,7 @@ const Roteador = (() => {
   function ajustarPagina(id, campos) {
     ajustesPag[id] = Object.assign({}, ajustesPag[id], campos); salvarPag(); reaplicar();
   }
-  // as áreas de agora de uma página e o espaço entre elas (cópia): { layouts: [{ id, tipo, espaco, largura }], entre }
+  // as áreas de agora de uma página e o espaço entre elas (cópia): { layouts: [{ id, nome, tipo, espaco, largura }], entre }
   function layouts(id) {
     const p = ligadas.find(x => x.id === id);
     return p ? { layouts: layoutsDe(p).map(l => Object.assign({}, l)), entre: entreDe(p) } : null;

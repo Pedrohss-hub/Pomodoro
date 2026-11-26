@@ -1,13 +1,13 @@
 /* Editor de layout: o botão "Editar layout" da barra de cada página que tem 2 ou mais containers.
    O botão fica no canto do site, ao lado da engrenagem, só com o símbolo (aria-label e dica explicam); ligado, vira um ✓ em fundo cheio.
    Ligado, cada container ganha uma alça (⋮⋮ + o título) presa à borda de cima; arraste pela alça para outra posição da fila.
-   Cada layout (área) da página mostra o seu nome ("Layout: topo"); um layout sem blocos aparece com "Solte aqui".
+   Cada layout (área) da página mostra o nome que você deu a ele ("Layout: Topo"; sem nome, o id); um layout sem blocos aparece com "Solte aqui".
    Dentro da MESMA área os outros se reorganizam na hora (só o style.order muda, o DOM não é mexido). Ao soltar, a nova ordem (1..n) da área é guardada
    com Containers.ajustar (navegador + Sheets, como qualquer ajuste) e o Roteador.reaplicar() refaz a tela a partir dela.
    Para OUTRA área: ao entrar nela, a área ganha um contorno e uma barra mostra onde o bloco vai ficar; o bloco só muda de lugar ao soltar
    (grava "layout" e "ordem" dele e renumera as duas áreas). Esc cancela.
-   Ao ligar o modo o Painel ao lado abre com os LAYOUTS da página (js/core/painel-layout.js): tipo de grade, espaços, criar e apagar layouts.
-   Em tela pequena ele não abre sozinho (cobriria a página): toque no nome do layout ("Layout: topo ⚙") para abrir.
+   Ao ligar o modo o Painel ao lado abre com os LAYOUTS da página (js/core/painel-layout.js): nome, tipo de grade, espaços, colunas de cada bloco, criar e apagar layouts.
+   Em tela pequena ele não abre sozinho (cobriria a página): toque no nome do layout ("Layout: nome ⚙") para abrir.
 
    Como usar: nada a chamar. Basta carregar este arquivo depois de roteador.js e antes de paginas.js (que chama Roteador.iniciar).
    Ele se registra com Roteador.acaoDePagina e o botão aparece sozinho, na barra da página, só onde há 2+ containers ligados.
@@ -64,10 +64,13 @@ const EditorLayout = (() => {
   }
 
   const contar = id => ed.info.itens.filter(it => it.raiz.parentNode && it.raiz.parentNode.dataset.layout === id).length;
+  // os blocos de um layout, na ordem de agora: [{ id, titulo }] (o Painel de layouts usa para escolher quantas colunas cada um ocupa)
+  const blocos = id => ordemVisual(ed.info.itens.filter(it => it.raiz.parentNode && it.raiz.parentNode.dataset.layout === id)).map(it => ({ id: it.id, titulo: nome(it.id) }));
+  const nomeDoLayout = id => { const l = Roteador.layouts(ed.info.id).layouts.find(x => x.id === id); return (l && l.nome) || id; };
   function abrirLayouts() {
     if (!ed) return;
     const b = document.querySelector('.abas [data-pg="' + ed.info.id + '"]');
-    PainelLayout.abrir({ pid: ed.info.id, titulo: b ? b.textContent : ed.info.id, contar, aoAlterar: marcarAreas });
+    PainelLayout.abrir({ pid: ed.info.id, titulo: b ? b.textContent : ed.info.id, contar, blocos, aoAlterar: marcarAreas });
   }
 
   // nome em cada área; área sem blocos ganha um espaço "Solte aqui" (e aparece, mesmo vazia, só enquanto o modo está ligado)
@@ -75,10 +78,9 @@ const EditorLayout = (() => {
     if (!ed) return;
     ed.info.destino.querySelectorAll(AREAS).forEach(area => {
       area.hidden = false;
-      if (!area.querySelector(':scope > .el-area-nome')) {
-        const nm = h('button', 'el-area-nome', 'Layout: ' + area.dataset.layout + ' ⚙'); nm.type = 'button'; nm.title = 'Ajustar os layouts desta página';
-        nm.onclick = abrirLayouts; area.append(nm);
-      }
+      let nm = area.querySelector(':scope > .el-area-nome');
+      if (!nm) { nm = h('button', 'el-area-nome'); nm.type = 'button'; nm.title = 'Ajustar os layouts desta página'; nm.onclick = abrirLayouts; area.append(nm); }
+      nm.textContent = 'Layout: ' + nomeDoLayout(area.dataset.layout) + ' ⚙';          // o nome pode ter mudado no Painel
       const vazia = !ed.info.itens.some(it => it.raiz.parentNode === area), v = area.querySelector(':scope > .el-vazio');
       if (vazia && !v) area.append(h('div', 'el-vazio', 'Solte aqui'));
       else if (!vazia && v) v.remove();

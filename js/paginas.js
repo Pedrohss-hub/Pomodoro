@@ -23,8 +23,9 @@ const PAGINAS = [
    sozinha só com os containers dela. "ligado: false" esconde a página sem apagar nada. "larga: true" usa a tela larga.
 
    LAYOUTS da página (campo "layouts"): cada página tem uma ou mais ÁREAS, de cima para baixo; cada container fica numa área (campo "layout" dele).
-     id       nome da área
-     tipo     'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'lateral' (coluna estreita + o resto, como o Pomodoro)
+     id       identificador interno da área (não aparece na tela)
+     nome     (opcional) o nome que aparece na tela, livre; dá-se pelo Painel de layouts (Editar layout). Sem nome, aparece o id
+     tipo     'coluna' (1 coluna, o padrão) | 'duas' | 'tres' | 'quatro' | 'cinco' | 'seis' | 'lateral' (coluna estreita + o resto, como o Pomodoro)
      espaco   espaço entre os blocos DENTRO da área: 1 = normal, 0.5 = metade, 2 = dobro (soma-se ao ajuste geral de Aparência)
      largura  'ampla' (o padrão; largura grande em tela larga) | 'normal' (a largura do site)
      pilha    quantos blocos ficam empilhados na 1ª coluna (só 'lateral' e 'duas', em tela larga); o seguinte fica ao lado, na altura da pilha (padrão 1 = nenhum)
