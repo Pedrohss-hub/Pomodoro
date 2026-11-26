@@ -12,7 +12,7 @@
     select option:hover, select option:focus-visible { background: color-mix(in srgb, var(--cor) 12%, transparent); }
     select option:checked { font-weight: 700; }
     select option::checkmark { display: none; }
-  }
+}
 
   /* lista de sugestões (no lugar do datalist do Chrome) */
   input[data-combo] { padding-right: 2.2rem; background-image: var(--seta-select); background-repeat: no-repeat; background-position: right .8rem center; background-size: .7rem; }
@@ -45,11 +45,43 @@
   @media (min-width: 70rem) {
     body.painel-aberto { padding-right: 25rem; }
     body.painel-aberto .ct-area.ampla { width: min(calc(94vw - 25rem), 84rem); }
-  }
+}
   @media (max-width: 69.99rem) {
     .painel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 52vh; border-radius: calc(1rem * var(--raio)) calc(1rem * var(--raio)) 0 0; }
     body.painel-aberto { padding-bottom: 54vh; }
-  }
+}
   /* subtítulo que separa grupos de campos no Painel (campo tipo "titulo") */
   .pn-secao { margin: 0; padding-top: .8rem; border-top: 1px solid var(--line); font-size: .85rem; font-weight: 600; }
   .painel-corpo > :first-child .pn-secao { padding-top: 0; border-top: 0; }
+  /* Controles do Painel (js/core/controles.js) e caixas de grupo: seletor de células (cs-), campo "− valor +" (md-), opções lado a lado (sg-) */
+  .pn-grupo { border: 1.5px solid var(--line); border-radius: calc(.8rem * var(--raio)); padding: 0 .8rem; }
+  .pn-grupo[open] { padding-bottom: .9rem; }
+  .pn-grupo > summary { padding: .7rem 0; font-weight: 700; font-size: .9rem; cursor: pointer; overflow-wrap: anywhere; }
+  .pn-grupo-corpo { display: grid; gap: .9rem; }
+  .pn-sub { margin: .3rem 0 0; font-size: .72rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--soft); }
+  .cs-grade { display: grid; gap: 3px; padding: .45rem; border: 1.5px solid var(--line); border-radius: calc(.6rem * var(--raio)); background: var(--card); outline-offset: 2px; }
+  .cs-c { height: 1.05rem; border: 1px solid var(--line); border-radius: 3px; }
+  .cs-c.atual { background: color-mix(in srgb, var(--cor) 28%, transparent); border-color: color-mix(in srgb, var(--cor) 60%, transparent); }
+  .cs-c.sobre { background: var(--cor); border-color: var(--cor); }
+  .cs-leg { margin: .4rem 0 0; font-size: .82rem; font-weight: 600; }
+  .pl-bloco { display: grid; gap: .3rem; }
+  .pl-grade { display: grid; gap: .9rem; }
+  .md { display: grid; gap: .35rem; }
+  .md-topo { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
+  .md-rot { font-weight: 600; font-size: .85rem; }
+  .md-info { font-size: .75rem; color: var(--soft); }
+  .md-linha { display: flex; gap: .35rem; align-items: stretch; }
+  .md-btn { flex: none; width: 2.2rem; border: 1.5px solid var(--line); border-radius: calc(.6rem * var(--raio)); background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+  .md-btn:hover:not(:disabled) { border-color: var(--ink); }
+  .md-btn:disabled { opacity: .4; cursor: default; }
+  .pn-campo input.md-num { flex: 1; min-width: 0; width: auto; text-align: center; padding: .45rem .4rem; }
+  .pn-campo select.md-un { flex: none; width: auto; padding: .45rem 1.6rem .45rem .6rem; }
+  .md-desl { width: 100%; margin: 0; accent-color: var(--cor); }
+  .sg { display: grid; gap: .3rem; }
+  .sg-grupo { display: flex; border: 1.5px solid var(--line); border-radius: calc(.6rem * var(--raio)); overflow: hidden; }
+  .sg-op { flex: 1; padding: .5rem .4rem; border: 0; background: transparent; color: inherit; font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; }
+  .sg-op + .sg-op { border-left: 1.5px solid var(--line); }
+  .sg-op.atual { background: var(--ink); color: var(--bg); }
+  @media (pointer: coarse) { .cs-c { height: 1.5rem; } .md-btn { width: 2.8rem; } }
+  .painel-corpo > *, .pn-grupo, .pn-grupo-corpo > *, .pl-grade > *, .pl-bloco > *, .md > *, .cs > * { min-width: 0; }
+  .pn-grupo-corpo, .pl-grade, .pl-bloco, .md, .cs { max-width: 100%; }

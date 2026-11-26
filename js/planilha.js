@@ -1,87 +1,125 @@
-/* Campos padronizados (select e lista de sugestões) e o painel de configuração dos containers. */
-  :root { --seta-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236f6e84' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+/* Configuração da planilha (o que enviar e de onde ler) e painel Avançado. Depende de pomodoro.js. */
+(() => {
+  const CAMPOS = [
+    ['data', 'Data', 'dia da sessão'], ['inicio', 'Início', 'hora em que começou'], ['fim', 'Fim', 'hora em que terminou'],
+    ['perdido', 'Perdido', 'minutos fora de foco'], ['categoria', 'Categoria', 'a escolhida no menu'],
+    ['tipo', 'Tipo', 'texto fixo, definido abaixo'], ['liquido', 'Tempo líquido', 'minutos focados']
+  ];
+  const msg = (t, cls) => { const e = $('#sh-msg'); e.textContent = t || ''; e.className = 'dica' + (cls ? ' ' + cls : ''); };
+  const tbody = $('#sh-campos');
+  CAMPOS.forEach(([k, nome, dica]) => {
+    const tr = document.createElement('tr'), a = document.createElement('td'), b = document.createElement('td');
+    const n = document.createElement('b'); n.textContent = nome;
+    const s = document.createElement('small'); s.textContent = dica;
+    a.append(n, s);
+    const i = document.createElement('input'); i.type = 'text'; i.id = 'sh-c-' + k; i.maxLength = 3; i.autocomplete = 'off';
+    i.setAttribute('aria-label', 'Coluna de ' + nome);
+    b.append(i); tr.append(a, b); tbody.append(tr);
+  });
 
-  /* todo <select>: mesma aparência (seta própria; a lista aberta também, quando o navegador deixa) */
-  select:not([multiple]) { appearance: none; -webkit-appearance: none; padding-right: 2.2rem; cursor: pointer;
-    background-image: var(--seta-select) !important; background-repeat: no-repeat !important; background-position: right .8rem center !important; background-size: .7rem !important; }
-  @supports (appearance: base-select) {
-    select:not([multiple]), select:not([multiple])::picker(select) { appearance: base-select; }
-    select::picker-icon { display: none; }
-    select::picker(select) { border: 1.5px solid var(--line); border-radius: calc(.8rem * var(--raio)); background: var(--card); padding: .3rem; box-shadow: 0 14px 40px rgba(35, 32, 58, .2); }
-    select option { padding: .5rem .7rem; border-radius: calc(.5rem * var(--raio)); font: inherit; }
-    select option:hover, select option:focus-visible { background: color-mix(in srgb, var(--cor) 12%, transparent); }
-    select option:checked { font-weight: 700; }
-    select option::checkmark { display: none; }
+  const ids = ['#sh-aba', '#sh-linha', '#sh-tipo', '#sh-formato', '#sh-abacfg', '#sh-intervalo'].concat(CAMPOS.map(c => '#sh-c-' + c[0]));
+
+  function mostrar() {
+    const p = cfg.planilha;
+    $('#sh-aba').value = p.aba; $('#sh-linha').value = p.linhaInicial; $('#sh-tipo').value = p.tipo;
+    $('#sh-formato').value = p.formatoTempo; $('#sh-abacfg').value = p.abaConfig; $('#sh-intervalo').value = p.intervalo;
+    CAMPOS.forEach(([k]) => { $('#sh-c-' + k).value = p.campos[k]; });
+    resumo();
+}
+
+  function resumo() {
+    const p = cfg.planilha;
+    const enviados = CAMPOS.filter(([k]) => p.campos[k]).map(([k, n]) => n + ' → ' + p.campos[k]);
+    const cols = CAMPOS.map(([k]) => p.campos[k]).filter(Boolean);
+    const dup = cols.filter((c, i) => cols.indexOf(c) !== i);
+    let t = enviados.length
+      ? 'Cada sessão vai para a aba “' + p.aba + '”, na primeira linha livre a partir da linha ' + p.linhaInicial + ': ' + enviados.join(', ') + '.'
+      : 'Nenhuma coluna configurada: nada será enviado.';
+    if (dup.length) t += '\nAtenção: a coluna ' + [...new Set(dup)].join(', ') + ' está em mais de um campo; o envio vai falhar.';
+    if (!/^[A-Za-z]{1,3}\d+(:[A-Za-z]{1,3}\d+)?$/.test(p.intervalo)) t += '\nAtenção: as células das categorias devem ser como A23:A31.';
+    const e = $('#sh-resumo'); e.textContent = t; e.style.whiteSpace = 'pre-wrap';
+    e.style.color = /Atenção|Nenhuma/.test(t) ? 'var(--erro)' : '';
   }
 
-  /* lista de sugestões (no lugar do datalist do Chrome) */
-  input[data-combo] { padding-right: 2.2rem; background-image: var(--seta-select); background-repeat: no-repeat; background-position: right .8rem center; background-size: .7rem; }
-  .combo-lista { position: fixed; z-index: 300; max-height: 14rem; overflow: auto; padding: .3rem; background: var(--card); border: 1.5px solid var(--line); border-radius: calc(.8rem * var(--raio)); box-shadow: 0 14px 40px rgba(35, 32, 58, .2); }
-  .combo-op { padding: .5rem .7rem; border-radius: calc(.5rem * var(--raio)); font-size: .9rem; cursor: pointer; overflow-wrap: anywhere; }
-  .combo-op:hover, .combo-op.ativo { background: color-mix(in srgb, var(--cor) 12%, transparent); }
-  .combo-op.atual { font-weight: 700; }
+  function guardar() {
+    const p = cfg.planilha;
+    p.aba = $('#sh-aba').value.trim() || p.aba;
+    p.linhaInicial = Math.max(1, parseInt($('#sh-linha').value) || p.linhaInicial);
+    p.tipo = $('#sh-tipo').value;
+    p.formatoTempo = $('#sh-formato').value;
+    p.abaConfig = $('#sh-abacfg').value.trim() || p.abaConfig;
+    p.intervalo = $('#sh-intervalo').value.trim().toUpperCase() || p.intervalo;
+    CAMPOS.forEach(([k, nome]) => {
+      const v = $('#sh-c-' + k).value.trim().toUpperCase();
+      if (/^[A-Z]{0,3}$/.test(v)) p.campos[k] = v; else msg('Coluna inválida em “' + nome + '”: use só letras (A, B, … AA).', 'erro');
+    });
+    LS.set('pomo-cfg', cfg);
+    mostrar();
+}
+  ids.forEach(s => $(s).addEventListener('change', guardar));
 
-  /* painel de configuração: ao lado em telas largas, embaixo no celular; a página abre espaço para ele */
-  .painel { position: fixed; z-index: 40; top: 1rem; right: 1rem; bottom: 1rem; width: 22.5rem; display: flex; flex-direction: column; background: var(--card); border: 1.5px solid var(--line); border-radius: calc(1rem * var(--raio)); box-shadow: 0 18px 50px rgba(35, 32, 58, .22); }
-  .painel[hidden] { display: none; }
-  .painel-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; padding: 1rem 1rem .75rem; border-bottom: 1px solid var(--line); }
-  .painel-titulo { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
-  .painel-sub { margin: .15rem 0 0; font-size: .78rem; color: var(--soft); }
-  .painel-fechar { flex: none; width: 1.9rem; height: 1.9rem; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--soft); cursor: pointer; line-height: 1; }
-  .painel-fechar:hover { border-color: var(--ink); color: var(--ink); }
-  .painel-corpo { flex: 1; overflow: auto; padding: 1rem; display: grid; gap: 1rem; align-content: start; }
-  .painel-rodape { display: flex; flex-wrap: wrap; gap: .5rem; padding: .75rem 1rem; border-top: 1px solid var(--line); }
-  .painel-btn { padding: .5rem .9rem; border: 1.5px solid var(--ink); border-radius: calc(.6rem * var(--raio)); background: transparent; cursor: pointer; font-weight: 600; font-size: .85rem; }
-  .painel-btn.perigo { border-color: var(--erro); color: var(--erro); }
-  .pn-rotulo { display: block; margin-bottom: .3rem; font-weight: 600; font-size: .85rem; }
-  .pn-campo input[type="text"], .pn-campo input[type="number"], .pn-campo select { width: 100%; padding: .65rem .75rem; border: 1.5px solid var(--line); border-radius: calc(.6rem * var(--raio)); background-color: var(--card); font: inherit; color: inherit; }
-  .pn-campo input.erro { border-color: var(--erro); }
-  .pn-caixa { display: flex; align-items: flex-start; gap: .6rem; font-size: .9rem; cursor: pointer; }
-  .pn-caixa input { margin-top: .2rem; }
-  .pn-dica { margin: .3rem 0 0; font-size: .75rem; color: var(--soft); }
-  .pn-erro { margin: .3rem 0 0; font-size: .75rem; font-weight: 600; color: var(--erro); }
-  .editando { outline: 2px solid var(--cor); outline-offset: 3px; opacity: 1 !important; filter: none !important; }
-  body { transition: padding .2s ease; }
-  @media (min-width: 70rem) {
-    body.painel-aberto { padding-right: 25rem; }
-    body.painel-aberto .ct-area.ampla { width: min(calc(94vw - 25rem), 84rem); }
-  }
-  @media (max-width: 69.99rem) {
-    .painel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 52vh; border-radius: calc(1rem * var(--raio)) calc(1rem * var(--raio)) 0 0; }
-    body.painel-aberto { padding-bottom: 54vh; }
-  }
-  /* subtítulo que separa grupos de campos no Painel (campo tipo "titulo") */
-  .pn-secao { margin: 0; padding-top: .8rem; border-top: 1px solid var(--line); font-size: .85rem; font-weight: 600; }
-  .painel-corpo > :first-child .pn-secao { padding-top: 0; border-top: 0; }
-  /* Controles do Painel (js/core/controles.js) e caixas de grupo: seletor de células (cs-), campo "− valor +" (md-), opções lado a lado (sg-) */
-  .pn-grupo { border: 1.5px solid var(--line); border-radius: calc(.8rem * var(--raio)); padding: 0 .8rem; }
-  .pn-grupo[open] { padding-bottom: .9rem; }
-  .pn-grupo > summary { padding: .7rem 0; font-weight: 700; font-size: .9rem; cursor: pointer; overflow-wrap: anywhere; }
-  .pn-grupo-corpo { display: grid; gap: .9rem; }
-  .pn-sub { margin: .3rem 0 0; font-size: .72rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--soft); }
-  .cs-grade { display: grid; gap: 3px; padding: .45rem; border: 1.5px solid var(--line); border-radius: calc(.6rem * var(--raio)); background: var(--card); outline-offset: 2px; }
-  .cs-c { height: 1.05rem; border: 1px solid var(--line); border-radius: 3px; }
-  .cs-c.atual { background: color-mix(in srgb, var(--cor) 28%, transparent); border-color: color-mix(in srgb, var(--cor) 60%, transparent); }
-  .cs-c.sobre { background: var(--cor); border-color: var(--cor); }
-  .cs-leg { margin: .4rem 0 0; font-size: .82rem; font-weight: 600; }
-  .pl-bloco { display: grid; gap: .3rem; }
-  .pl-grade { display: grid; gap: .9rem; }
-  .md { display: grid; gap: .35rem; }
-  .md-topo { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
-  .md-rot { font-weight: 600; font-size: .85rem; }
-  .md-info { font-size: .75rem; color: var(--soft); }
-  .md-linha { display: flex; gap: .35rem; align-items: stretch; }
-  .md-btn { flex: none; width: 2.2rem; border: 1.5px solid var(--line); border-radius: calc(.6rem * var(--raio)); background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
-  .md-btn:hover:not(:disabled) { border-color: var(--ink); }
-  .md-btn:disabled { opacity: .4; cursor: default; }
-  .pn-campo input.md-num { flex: 1; min-width: 0; width: auto; text-align: center; padding: .45rem .4rem; }
-  .pn-campo select.md-un { flex: none; width: auto; padding: .45rem 1.6rem .45rem .6rem; }
-  .md-desl { width: 100%; margin: 0; accent-color: var(--cor); }
-  .sg { display: grid; gap: .3rem; }
-  .sg-grupo { display: flex; border: 1.5px solid var(--line); border-radius: calc(.6rem * var(--raio)); overflow: hidden; }
-  .sg-op { flex: 1; padding: .5rem .4rem; border: 0; background: transparent; color: inherit; font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; }
-  .sg-op + .sg-op { border-left: 1.5px solid var(--line); }
-  .sg-op.atual { background: var(--ink); color: var(--bg); }
-  @media (pointer: coarse) { .cs-c { height: 1.5rem; } .md-btn { width: 2.8rem; } }
-  .painel-corpo > *, .pn-grupo, .pn-grupo-corpo > *, .pl-grade > *, .pl-bloco > *, .md > *, .cs > * { min-width: 0; }
-  .pn-grupo-corpo, .pl-grade, .pl-bloco, .md, .cs { max-width: 100%; }
+  async function pedir(fn) {
+    if (!cfg.url || !cfg.token) throw new Error('preencha a URL e o token acima');
+    if (!navigator.onLine) throw new Error('sem internet');
+    try { return await fn(); }
+    catch (err) {
+      if (err instanceof SyntaxError) throw new Error('o script respondeu algo inesperado (URL errada ou script antigo)');
+      if (['TimeoutError', 'AbortError'].includes(err.name) || (err.name === 'TypeError' && /fetch|network|load failed/i.test(err.message))) throw new Error('sem conexão com o script');
+      throw err;
+    }
+}
+
+  $('#sh-buscar-abas').onclick = async () => {
+    msg('Buscando abas…');
+    try {
+      const d = await pedir(() => chamarScript('abas'));
+      if (!d.ok) throw new Error(d.erro || 'resposta inesperada');
+      $('#sh-abas').replaceChildren(...d.abas.map(n => new Option('', n)));
+      msg('Abas encontradas: ' + d.abas.join(', ') + '. Clique num campo de aba para escolher.', 'ok');
+    } catch (err) { msg('Não consegui buscar as abas: ' + err.message, 'erro'); }
+  };
+
+  $('#sh-testar').onclick = async () => {
+    msg('Lendo…');
+    try {
+      const d = await pedir(lerCategoriasPlanilha);
+      if (!d.ok) throw new Error(d.erro || 'resposta inesperada');
+      if (!d.categorias.length) throw new Error('nenhuma categoria nessas células');
+      categorias = d.categorias; categoriasCarregadas = true;
+      LS.set('pomo-cats', categorias); renderCategorias();
+      msg('Leitura ok em ' + (d.aba || cfg.planilha.abaConfig) + '!' + (d.intervalo || cfg.planilha.intervalo) + ' (' + categorias.length + '): ' + categorias.join(', '), 'ok');
+    } catch (err) { msg('Falhou: ' + err.message, 'erro'); }
+  };
+
+  $('#sh-restaurar').onclick = () => {
+    if (!confirm('Voltar as opções da planilha para o padrão (aba Banco, colunas A–G, categorias em Config!A23:A31)?')) return;
+    cfg.planilha = JSON.parse(JSON.stringify(PLAN_PADRAO));
+    LS.set('pomo-cfg', cfg); mostrar(); msg('');
+  };
+
+  /* ---------- painel avançado: fala direto com o script genérico ---------- */
+  const EXEMPLOS = {
+    info: {},
+    abas: {},
+    ler: { aba: 'Banco', intervalo: 'A1:G5', retorno: ['exibidos'] },
+    escrever: { aba: 'Teste', intervalo: 'A1', valores: [['olá', 1], ['hoje', { iso: new Date().toISOString(), como: 'data' }]] },
+    anexar: { aba: 'Teste', linhaInicial: 1, colunas: { A: 'texto', B: 123 } },
+    limpar: { aba: 'Teste', intervalo: 'A1:B5' }
+  };
+  const mostrarExemplo = () => { $('#av-json').value = JSON.stringify(EXEMPLOS[$('#av-acao').value], null, 2); };
+  $('#av-acao').onchange = mostrarExemplo;
+  mostrarExemplo();
+  $('#av-rodar').onclick = async () => {
+    const acao = $('#av-acao').value, saida = $('#av-saida');
+    let params;
+    try { params = JSON.parse($('#av-json').value || '{}'); } catch (err) { saida.textContent = 'JSON inválido: ' + err.message; return; }
+    if (['escrever', 'anexar', 'limpar'].includes(acao) && !confirm('Executar "' + acao + '" na planilha de verdade?')) return;
+    saida.textContent = 'Executando…';
+    try {
+      const d = await pedir(() => chamarScript(acao, params));
+      saida.textContent = JSON.stringify(d, null, 2);
+    } catch (err) { saida.textContent = 'Falhou: ' + err.message; }
+  };
+
+  mostrar();
+})();
