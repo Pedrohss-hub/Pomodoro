@@ -19,6 +19,7 @@
             - mouse e toque (pointer events); perto da borda de cima/baixo da tela a página rola sozinha
             - Esc cancela o arrastar (volta como estava); trocar de página ou clicar no botão de novo (✓ "Concluir layout") sai do modo
             - fora do modo, nada muda: alça e classes só existem enquanto ele está ligado
+   Tela estreita (< 72rem): não há grade; um aviso (.el-estreito) explica e diz a largura necessária em px.
    Estilo: css/layout.css (classes el-*). Não usa a classe .editando, que é do Painel. */
 const EditorLayout = (() => {
   const h = Util.h;
@@ -62,7 +63,20 @@ const EditorLayout = (() => {
     document.body.append(bl); ed.btnLayouts = bl;
     marcarAreas();
     marcarBotao(info.id, true);
-    if (matchMedia('(min-width: 72rem)').matches) abrirLayouts();
+    ed.mq = matchMedia('(min-width: 72rem)'); ed.mqf = dicaEstreita; ed.mq.addEventListener('change', ed.mqf); dicaEstreita();
+    if (ed.mq.matches) abrirLayouts();
+  }
+
+  // tela estreita (< 72rem): não há grade, só a ordem. Em vez de barras que não existem, uma dica diz o que fazer (e a largura que falta, em px)
+  function dicaEstreita() {
+    if (!ed) return;
+    if (ed.aviso) { ed.aviso.remove(); ed.aviso = null; }
+    if (ed.mq.matches) return;
+    const t = h('div'); t.style.cssText = 'position:absolute;visibility:hidden;font-size:medium;width:72em'; document.body.append(t);   // 72rem de uma media query = 72 × o texto padrão do navegador (não o da Aparência)
+    const precisa = Math.round(t.getBoundingClientRect().width); t.remove();
+    ed.aviso = h('div', 'el-estreito'); ed.aviso.setAttribute('role', 'note');
+    ed.aviso.textContent = 'Tela estreita (' + innerWidth + ' px): sem barras de tamanho, cada layout é uma coluna. Arraste pela alça de cima para mudar a ordem. Para mudar colunas e tamanhos, use uma tela com ' + precisa + ' px ou mais (ou diminua o zoom do navegador: Ctrl e −).';
+    document.body.append(ed.aviso);
   }
 
   const contar = id => ed.info.itens.filter(it => it.raiz.parentNode && it.raiz.parentNode.dataset.layout === id).length;
@@ -97,6 +111,8 @@ const EditorLayout = (() => {
     const mexeu = EditorGrade.desligar();                   // true: ele mexeu nas linhas de algum layout; refazer a página desfaz
     ed.alcas.forEach(a => a.remove());
     if (ed.btnLayouts) ed.btnLayouts.remove();
+    if (ed.aviso) ed.aviso.remove();
+    ed.mq.removeEventListener('change', ed.mqf);
     PainelLayout.fechar();
     let vazia = false;
     ed.info.destino.querySelectorAll(AREAS).forEach(area => {

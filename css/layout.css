@@ -33,7 +33,7 @@
   .painel-estudo.el-editando .ct-area > * { position: relative; opacity: 1; filter: none; outline: 2px dashed var(--cor); outline-offset: 3px; }
   .painel-estudo.el-editando .ct-area > .editando { outline-style: solid; }
   .painel-estudo.el-editando .ct-area > .el-arrastado { opacity: .45; }
-  .el-alca { position: absolute; top: 0; left: 50%; transform: translate(-50%, -60%); z-index: 3; display: inline-flex; align-items: center; gap: .4rem; box-sizing: border-box; min-height: 2rem; max-width: calc(100% - 1.5rem); padding: 0 1rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .8rem; font-weight: 600; line-height: 1; white-space: nowrap; cursor: grab; box-shadow: 0 2px 8px rgba(35, 32, 58, .25); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .el-alca { position: absolute; top: 0; left: 50%; transform: translate(-50%, -60%); z-index: 6; display: inline-flex; align-items: center; gap: .4rem; box-sizing: border-box; min-height: 2rem; max-width: calc(100% - 1.5rem); padding: 0 1rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .8rem; font-weight: 600; line-height: 1; white-space: nowrap; cursor: grab; box-shadow: 0 2px 8px rgba(35, 32, 58, .25); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .el-pontos { letter-spacing: -.2em; }
   .el-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .el-chip { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; padding: .5rem 1rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .85rem; font-weight: 600; white-space: nowrap; box-shadow: 0 12px 30px rgba(35, 32, 58, .3); }
@@ -52,11 +52,15 @@
      .el-grade é uma camada por cima do layout, com as mesmas colunas (var(--ct-colunas) herdada) e as mesmas linhas (px, copiadas pelo JS);
      nela ficam as células, as divisórias, as etiquetas e os botões +. Só o que se pode clicar recebe o mouse (pointer-events). */
   .el-redim, .el-grade, .el-dica { display: none; }
+  /* aviso junto do ponteiro (alça sem espaço) e aviso de tela estreita (sem grade) */
+  .el-aviso { position: fixed; z-index: 61; max-width: 16rem; padding: .4rem .75rem; border-radius: .8rem; background: var(--ink); color: var(--bg); font-size: .75rem; font-weight: 600; line-height: 1.3; pointer-events: none; box-shadow: 0 6px 18px rgba(35, 32, 58, .3); }
+  .el-aviso[hidden] { display: none; }
+  .el-estreito { position: fixed; left: 50%; bottom: 4rem; transform: translateX(-50%); z-index: 44; width: min(30rem, calc(100vw - 2rem)); box-sizing: border-box; padding: .6rem .9rem; border: 1.5px solid var(--cor); border-radius: 1rem; background: var(--card); color: var(--ink); font-size: .8rem; line-height: 1.35; box-shadow: 0 6px 18px rgba(35, 32, 58, .25); }
   .el-celula-marca { position: fixed; z-index: 59; pointer-events: none; box-sizing: border-box; border: 2px solid var(--cor); border-radius: .8rem; background: color-mix(in srgb, var(--cor) 16%, transparent); }
   .el-celula-marca.nao { border-style: dashed; border-color: var(--erro, #d33); background: color-mix(in srgb, var(--erro, #d33) 12%, transparent); }
   .el-celula-marca[hidden] { display: none; }
   @media (min-width: 72rem) {
-    .painel-estudo.el-editando .ct-area > .el-grade { display: grid; position: absolute; inset: 0; z-index: 2; grid-area: auto; grid-template-columns: var(--ct-colunas, none); pointer-events: none; outline: none; margin: 0; }
+    .painel-estudo.el-editando .ct-area > .el-grade { display: grid; position: absolute; inset: 0; z-index: 5; grid-area: auto; grid-template-columns: var(--ct-colunas, none); pointer-events: none; outline: none; margin: 0; }
     .el-celula { box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px dashed color-mix(in srgb, var(--cor) 55%, transparent); border-radius: .8rem; color: var(--cor); font-size: .72rem; font-weight: 600; opacity: .85; }
     .el-celula.cheia { border: 0; }
     .ct-area.el-com-grade > .el-vazio { border-color: transparent; color: transparent; }
@@ -79,6 +83,8 @@
     /* alças do bloco: direita, embaixo e canto (ocupar mais colunas/linhas) */
     .painel-estudo.el-editando .ct-area > * > .el-redim { display: block; position: absolute; z-index: 4; border-radius: 999px; background: var(--cor); opacity: .7; touch-action: none; }
     .el-redim:hover, .el-redim.ativo { opacity: 1; }
+  .el-redim::before { content: ''; position: absolute; }        /* área de clique maior que o desenho (a alça é fina) */
+  .el-redim.d::before { inset: 0 -6px; } .el-redim.b::before { inset: -6px 0; } .el-redim.c::before { inset: -5px; }
     .el-redim.d { right: -3px; top: 30%; bottom: 30%; width: 6px; cursor: ew-resize; }
     .el-redim.b { bottom: -3px; left: 30%; right: 30%; height: 6px; cursor: ns-resize; }
     .el-redim.c { right: -5px; bottom: -5px; width: 14px; height: 14px; cursor: nwse-resize; }
@@ -88,8 +94,9 @@
   @media (min-width: 72rem) and (pointer: coarse) {
     .el-divisor.v { width: 28px; margin-left: -8px; } .el-divisor.v::after { left: 13px; }
     .el-divisor.h { height: 28px; margin-top: -8px; } .el-divisor.h::after { top: 13px; }
-    .el-redim.d { right: -10px; width: 20px; }
-    .el-redim.b { bottom: -10px; height: 20px; }
-    .el-redim.c { right: -12px; bottom: -12px; width: 28px; height: 28px; }
+    .el-redim.d { right: -3px; width: 20px; }
+    .el-redim.b { bottom: -3px; height: 20px; }
+    .el-redim.c { right: -6px; bottom: -6px; width: 28px; height: 28px; }
+    .el-redim.d::before, .el-redim.b::before, .el-redim.c::before { inset: 0; }
     .el-mais { width: 2.4rem; height: 2.4rem; }
   }

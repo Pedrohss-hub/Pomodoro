@@ -12,6 +12,7 @@
    o que já estava guardado (tipo, pilha, coluna1...) não é apagado. Antes disso nada é gravado: as células vêm de Roteador.modelo.
    Ordem das telas estreitas ("ordem"): ao MOVER ou TROCAR blocos ela é reescrita em leitura linha a linha (de cima para baixo, da esquerda para a direita).
    Nas outras edições (largura, altura, alças, + e ×) ela não muda.
+   As alças do bloco só mudam quantas células ele ocupa e só crescem sobre célula LIVRE; sem espaço, um aviso junto do ponteiro diz por quê (fim da grade: use o +; ou ocupado).
    Linhas vazias, enquanto se edita, ganham altura mínima de 5rem para dar para soltar blocos nelas (só na tela de edição).
    Como usar: o editor-layout.js chama  EditorGrade.ligar(info, depois)  /  desligar()  /  atualizar()  /  larga().
    O painel de layouts (js/core/painel-layout.js) usa, enquanto o modo está ligado e a tela é larga:
@@ -332,6 +333,22 @@ const EditorGrade = (() => {
     const w = indice(ev.clientX, g.xs) + 1 - b.col + 1, hh = indice(ev.clientY, g.ys) + 1 - b.lin + 1;
     d.res = tentarRedim(d.m, d.bloco, w, hh, d.modo);
     mostrarMarcas(g, d.res.marcas);
+    avisoRedim(ev, g, b, d);
+  }
+  // quis crescer e não coube: diz o porquê junto do ponteiro (antes a alça parecia "morta"). Esconde quando cabe ou quando só diminui.
+  function avisoRedim(ev, g, b, d) {
+    const nC = d.m.colunas.length, nL = nLin(d.m);
+    const ultC = g.xs[b.col + b.ocupa - 2], ultL = g.ys[b.lin + b.ocupaLin - 2], margem = 10;
+    const querC = d.modo !== 'b' && ultC && ev.clientX > ultC[1] + margem, querL = d.modo !== 'd' && ultL && ev.clientY > ultL[1] + margem;
+    let txt = '';
+    if (!d.res.ok && (querC || querL)) {
+      const fimC = querC && b.col + b.ocupa - 1 >= nC, fimL = querL && b.lin + b.ocupaLin - 1 >= nL;
+      txt = fimC || fimL ? 'Fim da grade: acrescente ' + (fimC ? 'uma coluna' : 'uma linha') + ' com o botão +' : 'Ocupado por outro bloco: mova ou diminua o vizinho antes';
+    }
+    if (!txt) { if (d.dica) d.dica.hidden = true; return; }
+    if (!d.dica) { d.dica = h('div', 'el-aviso'); document.body.append(d.dica); }       // no <body>: o .painel-estudo tem transform
+    d.dica.hidden = false; d.dica.textContent = txt;
+    d.dica.style.left = Math.min(ev.clientX + 14, innerWidth - 270) + 'px'; d.dica.style.top = (ev.clientY + 16) + 'px';
   }
   function soltarRedim(ev) {
     if (!drag || ev.pointerId !== drag.id) return;
