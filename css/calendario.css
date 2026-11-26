@@ -9,7 +9,7 @@
   .cal-dia { display: grid; grid-template-rows: auto 1fr; align-content: start; gap: .2rem; min-width: 0; min-height: 6.2rem; padding: .35rem; border: 1.5px solid var(--line); border-radius: calc(.7rem * var(--raio)); background: var(--card); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
   .cal-dia:hover { border-color: var(--cor); }
   .cal-dia:focus-visible { outline: 3px solid var(--cor); outline-offset: 2px; }
-  .cal-dia.fora { opacity: .45; }
+  .cal-dia.fora .cal-num { color: var(--soft); }
   .cal-num { justify-self: start; min-width: 1.5rem; padding: 0 .3rem; border-radius: 999px; text-align: center; font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.5rem; }
   .cal-dia.hoje { border-color: var(--cor); }
   .cal-dia.hoje .cal-num { background: var(--cor); color: var(--sobre); }
@@ -18,12 +18,12 @@
   .cal-item small { margin-right: .3rem; color: var(--soft); font-size: .66rem; }
   .cal-item.imp, .cal-d-item.imp { border-left-color: #C9A227; background: color-mix(in srgb, #C9A227 18%, var(--card)); }
   .cal-item.feita, .cal-d-item.feita .cal-d-desc { text-decoration: line-through; }
-  .cal-item.feita { opacity: .5; }
+  .cal-item.feita, .cal-item.passado { opacity: .5; }
   .cal-mais { padding-left: .35rem; color: var(--soft); font-size: .7rem; font-weight: 600; }
   .cal-pontos { display: none; flex-wrap: wrap; gap: .2rem; align-content: start; }
   .cal-ponto { width: .5rem; height: .5rem; border-radius: 50%; background: var(--cor); }
   .cal-ponto.imp { background: #C9A227; }
-  .cal-ponto.feita { opacity: .35; }
+  .cal-ponto.feita, .cal-ponto.passado { opacity: .4; }
   .cal-pontos small { color: var(--soft); font-size: .6rem; line-height: .5rem; }
   @container (max-width: 40rem) {
     .cal-dia { min-height: 3.4rem; padding: .25rem; }
@@ -34,6 +34,17 @@
   /* pop-up do dia */
   .cal-d-lista { display: grid; gap: .5rem; margin: 1rem 0 .5rem; max-height: 60vh; overflow: auto; }
   .cal-d-item { padding: .5rem .7rem; border: 1.5px solid var(--line); border-left: 4px solid var(--cor); border-radius: calc(.7rem * var(--raio)); background: var(--card); }
-  .cal-d-item.feita { opacity: .6; }
+  .cal-d-item.feita, .cal-d-item.passado { opacity: .6; }
   .cal-d-desc { font-weight: 600; font-size: .95rem; overflow-wrap: anywhere; }
   .cal-d-meta { display: flex; flex-wrap: wrap; gap: .2rem .6rem; margin-top: .15rem; color: var(--soft); font-size: .78rem; }
+  /* dica ao passar o mouse num dia com itens */
+  .cal-dica { position: fixed; z-index: 70; display: grid; gap: .3rem; width: max-content; max-width: min(20rem, calc(100vw - 1rem)); padding: .6rem .75rem; border: 1.5px solid var(--line); border-radius: calc(.7rem * var(--raio)); background: var(--card); color: var(--ink); box-shadow: 0 12px 30px rgba(35, 32, 58, .22); font-size: .8rem; pointer-events: none; }
+  .cal-dica[hidden] { display: none; }
+  .cal-dica-dia { font-size: .82rem; }
+  .cal-dica-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; padding-left: .5rem; border-left: 3px solid var(--cor); }
+  .cal-dica-item.imp { border-left-color: #C9A227; }
+  .cal-dica-item small { color: var(--soft); font-variant-numeric: tabular-nums; }
+  .cal-dica-desc { font-weight: 600; overflow-wrap: anywhere; }
+  .cal-dica-item em { color: var(--soft); font-style: normal; font-size: .72rem; }
+  .cal-dica-item.feita .cal-dica-desc { text-decoration: line-through; }
+  .cal-dica-item.feita, .cal-dica-item.passado { opacity: .6; }

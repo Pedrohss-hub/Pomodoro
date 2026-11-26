@@ -7,7 +7,7 @@
    Para OUTRA área: ao entrar nela, a área ganha um contorno e uma barra mostra onde o bloco vai ficar; o bloco só muda de lugar ao soltar
    (grava "layout" e "ordem" dele e renumera as duas áreas). Esc cancela.
    Ao ligar o modo o Painel ao lado abre com os LAYOUTS da página (js/core/painel-layout.js): nome, tipo de grade, espaços, colunas de cada bloco, criar e apagar layouts.
-   Em tela pequena ele não abre sozinho (cobriria a página): toque no nome do layout ("Layout: nome ⚙") para abrir.
+   Em tela pequena ele não abre sozinho (cobriria a página). Fechou o painel? O botão "⚙ Layouts" (canto de baixo, à esquerda) ou o nome do layout ("Layout: nome ⚙") abrem de novo.
 
    Como usar: nada a chamar. Basta carregar este arquivo depois de roteador.js e antes de paginas.js (que chama Roteador.iniciar).
    Ele se registra com Roteador.acaoDePagina e o botão aparece sozinho, na barra da página, só onde há 2+ containers ligados.
@@ -58,6 +58,8 @@ const EditorLayout = (() => {
       it.raiz.append(alca); ed.alcas.push(alca);
     });
     info.destino.classList.add('el-editando');
+    const bl = h('button', 'el-layouts-btn', '⚙ Layouts'); bl.type = 'button'; bl.title = 'Abrir o painel de layouts'; bl.onclick = abrirLayouts;   // sempre à mão para reabrir o painel (some quando ele está aberto)
+    document.body.append(bl); ed.btnLayouts = bl;
     marcarAreas();
     marcarBotao(info.id, true);
     if (matchMedia('(min-width: 72rem)').matches) abrirLayouts();
@@ -91,6 +93,7 @@ const EditorLayout = (() => {
     if (!ed) return;
     if (arr) terminar(false);
     ed.alcas.forEach(a => a.remove());
+    if (ed.btnLayouts) ed.btnLayouts.remove();
     PainelLayout.fechar();
     let vazia = false;
     ed.info.destino.querySelectorAll(AREAS).forEach(area => {

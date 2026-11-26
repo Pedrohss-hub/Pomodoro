@@ -3,8 +3,9 @@
    chega ou muda (evento 'agenda-atualizada'). É só para olhar: para criar, editar ou concluir um item use a Agenda.
    O que aparece:
      - cada dia mostra os itens (hora + descrição); em espaço estreito (celular, coluna lateral) mostra só pontinhos, um por item
-     - hoje fica marcado; dias do mês anterior/seguinte aparecem apagados
-     - itens concluídos aparecem apagados e riscados (dá para esconder no ⚙)
+     - hoje fica marcado; os dias do mês anterior/seguinte só têm o número mais claro (nada apagado)
+     - só os itens que JÁ PASSARAM ficam apagados (dias antes de hoje; hoje, os de hora anterior à de agora); os concluídos também ficam riscados (dá para esconder no ⚙)
+     - passar o mouse num dia que tem itens mostra uma dica com eles (dia sem itens não mostra nada); no toque vale o clique
      - itens da categoria em destaque (padrão "Imp", a mesma marca dos gráficos) ficam dourados
      - clicar num dia abre um pop-up com os itens dele; ‹ › trocam de mês e "Hoje" volta ao mês de agora
    Configuração (em js/paginas.js ou no ⚙ do quadro): { titulo, concluidas, inicio, destaque, maximo }
@@ -61,7 +62,14 @@ Containers.registrar('calendario', ctx => {
     return mapa;
   }
   const ehDestaque = x => !!c().destaque && x.cat.toLowerCase() === c().destaque.trim().toLowerCase();
-  const classeItem = x => (x.feita ? ' feita' : '') + (ehDestaque(x) ? ' imp' : '');
+  // já passou? (dia antes de hoje; ou hoje, com hora anterior à de agora; item de hoje sem hora ainda não passou)
+  const passou = x => {
+    const [a, m, d] = hoje(), dia = new Date(x.t[0], x.t[1], x.t[2]).getTime(), h0 = new Date(a, m, d).getTime();
+    if (dia !== h0) return dia < h0;
+    if (!x.hora) return false;
+    const n = new Date(); return x.hora < String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+  };
+  const classeItem = x => (x.feita ? ' feita' : '') + (ehDestaque(x) ? ' imp' : '') + (passou(x) ? ' passado' : '');
 
   /* ---------- desenhar o mês ---------- */
   function render() {
@@ -81,7 +89,7 @@ Containers.registrar('calendario', ctx => {
       b.append(h('span', 'cal-num', String(d.getDate())));
       const lista = h('span', 'cal-itens'), pontos = h('span', 'cal-pontos');
       itens.slice(0, max).forEach(x => {
-        const it = h('span', 'cal-item' + classeItem(x)); it.title = x.desc;
+        const it = h('span', 'cal-item' + classeItem(x));
         if (x.hora) it.append(h('small', null, x.hora));
         it.append(document.createTextNode(x.desc)); lista.append(it);
       });
@@ -91,8 +99,34 @@ Containers.registrar('calendario', ctx => {
       b.append(lista, pontos); cels.push(b);
     }
     grade.style.setProperty('--cal-linhas', String(semanas));
-    grade.replaceChildren(...cels);
+    esconderDica(); grade.replaceChildren(...cels);
   }
+
+  /* ---------- a dica ao passar o mouse (só em dia com itens; fica no <body>: o .painel-estudo tem transform e prenderia um fixed) ---------- */
+  const dica = h('div', 'cal-dica'); dica.setAttribute('role', 'tooltip'); dica.hidden = true; document.body.append(dica);
+  let dicaDe = null;
+  function esconderDica() { dica.hidden = true; dicaDe = null; }
+  function mostrarDica(b) {
+    const [a, m, d] = b.dataset.dia.split('-').map(Number), itens = porDia().get(chave(a, m, d)) || [];
+    if (!itens.length) return esconderDica();                        // dia vazio: nada de dica
+    dicaDe = b;
+    dica.replaceChildren(h('strong', 'cal-dica-dia', maiuscula(DIA_CURTO.format(new Date(a, m, d)))), ...itens.map(x => {
+      const li = h('div', 'cal-dica-item' + classeItem(x)), meta = h('small', null, x.hora || 'Dia todo');
+      li.append(meta, h('span', 'cal-dica-desc', x.desc));
+      if (x.cat) li.append(h('em', null, x.cat));
+      return li;
+    }));
+    dica.hidden = false;
+    const r = b.getBoundingClientRect(), w = dica.offsetWidth, alt = dica.offsetHeight;
+    let top = r.bottom + 6; if (top + alt > innerHeight - 8) top = Math.max(8, r.top - alt - 6);      // sem espaço embaixo: vai para cima
+    dica.style.left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8) + 'px'; dica.style.top = top + 'px';
+  }
+  const diaDe = ev => ev.target.closest && ev.target.closest('.cal-dia');
+  grade.addEventListener('pointerover', ev => { if (ev.pointerType !== 'mouse') return; const b = diaDe(ev); if (b && b !== dicaDe) mostrarDica(b); });
+  grade.addEventListener('pointerout', ev => { const b = diaDe(ev); if (b && !b.contains(ev.relatedTarget)) esconderDica(); });
+  grade.addEventListener('focusin', ev => { const b = diaDe(ev); if (b) mostrarDica(b); });             // pelo teclado também
+  grade.addEventListener('focusout', esconderDica);
+  addEventListener('scroll', esconderDica, true);
 
   /* ---------- o pop-up do dia ---------- */
   function abrirDia(a, m, d) {
@@ -110,6 +144,7 @@ Containers.registrar('calendario', ctx => {
   }
   grade.addEventListener('click', ev => {
     const b = ev.target.closest('.cal-dia'); if (!b) return;
+    esconderDica();
     const [a, m, d] = b.dataset.dia.split('-').map(Number); abrirDia(a, m, d);
   });
 
@@ -133,12 +168,15 @@ Containers.registrar('calendario', ctx => {
   });
 
   document.addEventListener('agenda-atualizada', render);             // a agenda chegou ou mudou (inclusive concluir/desmarcar)
-  setInterval(() => { const k = chave(...hoje()); if (k !== diaHoje) { diaHoje = k; render(); } }, 60000);   // virou o dia: muda a marca de hoje
+  // a cada minuto: virou o dia (muda a marca de hoje) ou algum item passou da hora (fica apagado); só redesenha se algo mudou, para não sumir com a dica
+  const assinatura = () => [...porDia().values()].flat().map(x => (passou(x) ? 1 : 0)).join('');
+  let ass = '';
+  setInterval(() => { const k = chave(...hoje()), s = assinatura(); if (k !== diaHoje || s !== ass) { diaHoje = k; ass = s; render(); } }, 60000);
 
   return {
     raiz,
     iniciar() {
-      render();
+      render(); ass = assinatura();
       if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => raiz.classList.toggle('em-foco', en.isIntersecting), { rootMargin: '0px 0px -45% 0px' }).observe(raiz);
       else raiz.classList.add('em-foco');
     },
