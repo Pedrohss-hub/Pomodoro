@@ -199,7 +199,7 @@ const PainelLayout = (() => {
     if (aberto()) return atualizar();                       // já aberto: só redesenha (abrir de novo com o mesmo id fecharia o Painel)
     campos = []; montar();
     mq = matchMedia('(min-width: 72rem)'); mq.addEventListener('change', larguraMudou);
-    Painel.abrir({ id: pid(), titulo: 'Layouts', subtitulo: 'Página ' + (c.titulo || c.pid) + ' · vale na hora', campos, valores, aoMudar,
+    Painel.abrir({ id: pid(), titulo: 'Layouts', subtitulo: 'Página ' + (c.titulo || c.pid) + ' · vale na hora', classe: 'pn-translucido', campos, valores, aoMudar,
       aoFechar: () => { if (mq) mq.removeEventListener('change', larguraMudou); mq = null; },
       botoes: [{ rotulo: '+ Novo layout', acao: novo }] });
   }

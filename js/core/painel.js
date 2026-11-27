@@ -12,7 +12,8 @@
        valores: () => objeto,         // valores de agora (lido de novo a cada mudança)
        aoMudar: (chave, valor) => {}, // chamado ao vivo
        botoes: [ { rotulo, perigo, acao } ],
-       aoFechar: () => {}
+       aoFechar: () => {},
+       classe: 'minha-classe'         // opcional: classe extra no painel enquanto este está aberto (ex.: 'pn-translucido' = fica meio transparente sem o mouse)
      });
      Painel.atualizar()  redesenha os campos       Painel.fechar()  fecha       Painel.aberto()  as opções abertas (ou null)
 
@@ -135,6 +136,7 @@ const Painel = (() => {
     if (atual && o.id && atual.id === o.id) return fechar();
     if (atual) fechar(true);
     atual = o;
+    if (o.classe) el.classList.add(...String(o.classe).split(/\s+/).filter(Boolean));
     el.querySelector('.painel-titulo').textContent = o.titulo || 'Configuração';
     el.querySelector('.painel-sub').textContent = o.subtitulo || '';
     desenhar(); recolher(false);
@@ -145,6 +147,7 @@ const Painel = (() => {
     if (!el || !atual) return;
     const o = atual; atual = null;
     if (o.alvo) o.alvo.classList.remove('editando');
+    if (o.classe) el.classList.remove(...String(o.classe).split(/\s+/).filter(Boolean));
     if (!troca) { el.hidden = true; document.body.classList.remove('painel-aberto'); }
     if (o.aoFechar) o.aoFechar();
   }
