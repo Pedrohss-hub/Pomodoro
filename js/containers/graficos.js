@@ -1,6 +1,6 @@
 /* Tipo de container "graficos": gráficos de barras, linhas e histograma lidos de intervalos da planilha, desenhados em SVG,
    com período anterior apagado, dia da semana, marcas de itens "Imp" da agenda e cache.
-   Nos gráficos de BARRAS com um mês por barra, bolinhas sobre a barra mostram os compromissos PENDENTES da agenda daquele mês, na cor do prazo
+   Nos gráficos de BARRAS com um mês por barra, bolinhas numa faixa no topo (centralizadas na coluna do mês, de cima para baixo) mostram os compromissos PENDENTES da agenda daquele mês, na cor do prazo
    (as mesmas faixas da Agenda: atrasado = preto, vermelho, amarelo, verde). Opções no ⚙ do gráfico: "compromissos" ('auto' liga sozinho se os
    rótulos forem meses | 'sim' | 'nao'), "compromissosMax" (bolinhas por mês, padrão 5; o resto vira +N) e "anoMeses" (ano, quando o rótulo só traz o mês;
    vazio = ano de hoje). O mês vem da data da célula ou do rótulo (jan, janeiro/26, 03/2026, 2026-03). Não lê o Sheets: usa os itens que a Agenda já tem.
@@ -108,15 +108,15 @@ Containers.registrar('graficos', ctx => {
     const max = Math.max(unid === 'n' ? 1 : 0.5, ...vis.flatMap(s => s.valores));
     const st = unid === 'n' ? passoN(max) : passo(max), topo = Math.ceil(max / st - 1e-9) * st;
     const gw = pw / n;
-    // bolinhas dos compromissos (só barras): empilhadas logo acima da barra mais alta de cada mês; a faixa de cima cresce o quanto precisar
-    const prim0 = vis.filter(s => !s.fundo), valorMes = i => Math.max(0, ...prim0.map(s => s.valores[i] || 0));
+    // bolinhas dos compromissos (só barras): numa FAIXA no topo, acima da área das barras; em cada mês ficam centralizadas na coluna (no mesmo x do rótulo)
+    // e empilhadas de CIMA PARA BAIXO (a 1ª no topo); o "+N" vem depois da última. A faixa cresce o quanto precisar (nunca cobre as barras)
     const rb = Math.max(2.5, Math.min(4.5, gw / 2 - 1.5)), passoB = 2 * rb + 2;
     const mostradas = l => Math.min(l.length, cmpsMax);
     const alturaB = l => 4 + mostradas(l) * passoB + (l.length > cmpsMax ? 11 : 0);
     const bol = tipo === 'barras' && cmps && cmps.some(Boolean) ? cmps : null;
     if (bol) {
-      const extra = Math.max(0, ...bol.map((l, i) => l ? alturaB(l) - ph * (1 - valorMes(i) / topo) - (MT - 2) : 0));
-      MT += Math.ceil(extra); H += Math.ceil(extra);
+      const faixa = Math.max(0, ...bol.map(l => l ? alturaB(l) : 0)), extra = Math.max(0, Math.ceil(faixa + 6) - MT);
+      MT += extra; H += extra;
     }
     const y = v => MT + ph - (v / topo) * ph;
     const svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Gráfico de estudo' });
@@ -164,10 +164,10 @@ Containers.registrar('graficos', ctx => {
 
     if (bol) bol.forEach((l, i) => {
       if (!l) return;
-      const cx = ML + gw * (i + .5), base = y(valorMes(i)) - 4, ns = mostradas(l);
+      const cx = ML + gw * (i + .5), ns = mostradas(l);
       for (let k = 0; k < ns; k++)
-        svg.append(sv('circle', { cx, cy: base - rb - k * passoB, r: rb, fill: COR_PRAZO[l[k].nivel], stroke: 'var(--ink)', 'stroke-opacity': 0.45, 'stroke-width': 1, 'data-c': i, 'data-k': k }));
-      if (l.length > ns) svg.append(sv('text', { x: cx, y: base - ns * passoB - 2, 'text-anchor': 'middle', 'font-size': 9, 'font-weight': 700, fill: 'var(--soft)', 'data-c': i }, '+' + (l.length - ns)));
+        svg.append(sv('circle', { cx, cy: 4 + rb + k * passoB, r: rb, fill: COR_PRAZO[l[k].nivel], stroke: 'var(--ink)', 'stroke-opacity': 0.45, 'stroke-width': 1, 'data-c': i, 'data-k': k }));
+      if (l.length > ns) svg.append(sv('text', { x: cx, y: 4 + ns * passoB + 7, 'text-anchor': 'middle', 'font-size': 9, 'font-weight': 700, fill: 'var(--soft)', 'data-c': i }, '+' + (l.length - ns)));
     });
 
     function mostrar(ev) {
