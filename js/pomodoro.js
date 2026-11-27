@@ -86,8 +86,12 @@
   let categorias = LS.get('pomo-cats', ['Estudo']), categoriaSessao = 'Estudo', categoriasCarregadas = false, ultimaCarga = 0;
   let modo = 'foco', restante = 0, rodando = false, fimPrevisto = 0;
   let inicioSessao = null, ciclo = 0, timer = null, extra = false;
+  let livreMs = 0, trecho = 0;                                     // modo Livre: tempo já contado (pausado) e quando o trecho atual começou
 
-  const duracao = () => cfg[modo] * 60000;
+  const duracao = () => modo === 'livre' ? 0 : cfg[modo] * 60000;   // no modo Livre não há tempo definido
+  // tempo focado até agora, em ms (Foco: o que já passou do planejado; Livre: o que foi contado)
+  const focadoAgora = () => modo === 'livre' ? livreMs + (rodando ? Date.now() - trecho : 0) : duracao() - (rodando ? Math.max(0, fimPrevisto - Date.now()) : restante);
+  const fmtLivre = ms => { const t = Math.floor(Math.max(ms, 0) / 1000), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60, p = n => String(n).padStart(2, '0'); return h ? h + ':' + p(m) + ':' + p(s) : p(m) + ':' + p(s); };
   const fmt = ms => {
     const s = Math.ceil(Math.max(ms, 0) / 1000);
     return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
@@ -154,19 +158,19 @@
       b.setAttribute('aria-pressed', String(b.dataset.modo === modo));
       b.disabled = extra;
     });
-    const tempoTxt = extra ? '+' + fmtMais(Date.now() - fimPrevisto) : fmt(restante);
+    const tempoTxt = modo === 'livre' ? fmtLivre(focadoAgora()) : extra ? '+' + fmtMais(Date.now() - fimPrevisto) : fmt(restante);
     $('#tempo').textContent = tempoTxt;
     document.title = tempoTxt;
     $('#iniciar').hidden = extra;
     $('#reiniciar').hidden = extra;
-    $('#encerrar').hidden = extra || !(modo === 'foco' && inicioSessao);
+    $('#encerrar').hidden = extra || !((modo === 'foco' || modo === 'livre') && inicioSessao);
     $('#fim-extra').hidden = !extra;
     $('#no-horario').hidden = !extra;
     $('#categoria').disabled = !!inicioSessao;
     $('#cat-btn').disabled = !!inicioSessao;
-    $('#iniciar').textContent = rodando ? 'Pausar' : (restante < duracao() ? 'Continuar' : 'Iniciar');
+    $('#iniciar').textContent = rodando ? 'Pausar' : ((modo === 'livre' ? livreMs > 0 : restante < duracao()) ? 'Continuar' : 'Iniciar');
     $('#ciclo').textContent = extra ? 'O tempo acabou. Tempo extra rodando.'
-      : modo === 'foco' ? 'Sessões de foco concluídas: ' + ciclo : 'Hora de descansar.';
+      : modo === 'foco' ? 'Sessões de foco concluídas: ' + ciclo : modo === 'livre' ? 'Modo livre: conta para cima. Encerre quando quiser.' : 'Hora de descansar.';
   }
 
   const SVG = c => '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + c + '</svg>';
@@ -213,7 +217,7 @@
     log.forEach(e => {
       const li = document.createElement('li');
       const topo = document.createElement('div'); topo.className = 'topo';
-      const mat = document.createElement('span'); mat.className = 'mat'; mat.textContent = (e.categoria || 'Estudo') + (e.teste ? ' (teste)' : '') + (e.apagada ? ' · apagada' : '');
+      const mat = document.createElement('span'); mat.className = 'mat'; mat.textContent = (e.categoria || 'Estudo') + (e.livre ? ' (livre)' : '') + (e.teste ? ' (teste)' : '') + (e.apagada ? ' · apagada' : '');
       const st = document.createElement('span'); st.className = 'st ' + e.status;
       st.textContent = e.status === 'ok' ? 'Enviada' : e.status === 'enviando' ? 'Enviando…' : e.status === 'pendente' ? 'Na fila' : 'Falhou';
       topo.append(mat, st);
@@ -414,7 +418,7 @@
   function registrar(focadoMs, fim = new Date()) {
     if (focadoMs < minimoMs()) { avisar('Sessão com menos de ' + (cfg.teste ? '1 segundo' : '1 minuto') + ' não é enviada.'); return; }
     const e = {
-      id: Date.now(), categoria: categoriaSessao, teste: !!cfg.teste,
+      id: Date.now(), categoria: categoriaSessao, teste: !!cfg.teste, livre: modo === 'livre',
       inicio: inicioSessao.toISOString(), fim: fim.toISOString(),
       minutos: Math.round(focadoMs / 600) / 100,
       perdido: Math.round(Math.max(0, fim - inicioSessao - focadoMs) / 600) / 100,
@@ -427,20 +431,20 @@
   function parar() { clearInterval(timer); rodando = false; }
 
   function iniciar() {
-    if (modo === 'foco' && !inicioSessao) { inicioSessao = new Date(); categoriaSessao = $('#categoria').value || 'Estudo'; }
-    fimPrevisto = Date.now() + restante;
+    if ((modo === 'foco' || modo === 'livre') && !inicioSessao) { inicioSessao = new Date(); categoriaSessao = $('#categoria').value || 'Estudo'; }
+    if (modo === 'livre') trecho = Date.now(); else fimPrevisto = Date.now() + restante;
     rodando = true;
     timer = setInterval(tick, 250);
     render();
   }
 
   function pausar() {
-    restante = Math.max(0, fimPrevisto - Date.now());
+    if (modo === 'livre') livreMs += Date.now() - trecho; else restante = Math.max(0, fimPrevisto - Date.now());
     parar(); render();
   }
 
   function tick() {
-    if (!extra) {
+    if (!extra && modo !== 'livre') {                                // Livre: só atualiza o relógio (sem fim, sem alarme)
       restante = fimPrevisto - Date.now();
       if (restante <= 0) { if (modo === 'foco') entrarExtra(); else concluirPausa(); return; }
     }
@@ -472,8 +476,7 @@
   }
 
   function encerrarAntes() {
-    const restanteAgora = rodando ? Math.max(0, fimPrevisto - Date.now()) : restante;
-    const focado = duracao() - restanteAgora;
+    const focado = focadoAgora();
     if (focado < minimoMs()) {
       SOM.negado();
       avisar('Ainda não alcançou o mínimo de ' + (cfg.teste ? '1 segundo' : '1 minuto') + '. Faltam ' + Math.ceil((minimoMs() - focado) / 1000) + ' s para poder enviar.');
@@ -482,7 +485,7 @@
     SOM.enviar();
     if (rodando) pausar();
     registrar(focado);
-    inicioSessao = null;
+    inicioSessao = null; livreMs = 0;
     restante = duracao();
     render();
   }
@@ -490,7 +493,7 @@
   function zerar(novoModo) {
     parar(); extra = false;
     if (novoModo) modo = novoModo;
-    inicioSessao = null;
+    inicioSessao = null; livreMs = 0;
     restante = duracao();
     render();
   }
