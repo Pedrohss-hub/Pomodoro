@@ -29,4 +29,9 @@
   .ag-chk { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; padding: 0; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: transparent; cursor: pointer; font-size: .85rem; line-height: 1; }
   .ag-chk:hover { border-color: #0B7C6D; color: #0B7C6D; }
   .ag-item.feita .ag-chk { background: #0B7C6D; border-color: #0B7C6D; color: #fff; }
-  #dlg-ag .pl-form input[type="date"], #dlg-ag .pl-form input[type="time"] { width: 100%; }
+  /* edição na própria linha: o item vira um formulário (Enter salva, Esc cancela) */
+  .ag-item.ag-edit { grid-template-columns: minmax(0, 1fr); gap: .5rem; cursor: default; border-color: var(--cor); }
+  .ag-edit input[type="text"], .ag-edit input[type="date"], .ag-edit input[type="time"] { width: 100%; min-width: 0; padding: .55rem .65rem; border: 1.5px solid var(--line); border-radius: calc(.6rem * var(--raio)); background: var(--card); font: inherit; color: inherit; }
+  .ag-linha { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: .5rem; }
+  .ag-edit .pl-btns { gap: .5rem; }
+  .ag-status.salvando { color: var(--cor); font-weight: 600; }

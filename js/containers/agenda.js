@@ -1,5 +1,8 @@
 /* Tipo de container "agenda": lê uma aba (Status, ID, Descrição, Horas, Categoria, Rest, Data), mostra a lista ordenada por data
    e deixa concluir, editar, adicionar e excluir itens (grava na planilha pelo Sheets).
+   Edição rápida: clique no item e ele vira um formulário na própria linha (Enter salva, Esc cancela). A tela muda NA HORA e a gravação
+   vai em segundo plano, em fila (a linha de status mostra "Salvando…"); só os campos que mudaram são enviados, e a agenda NÃO é relida
+   depois de gravar. Se o script recusar, a mudança é desfeita e você é avisado.
    Configuração (em js/paginas.js): { aba, intervalo, vermelho, amarelo, concluidas, titulo, altura }.
      altura = altura máxima da lista, em rem (1 rem ≈ 16 px); passou disso, a lista rola (padrão 32). */
 Containers.registrar('agenda', ctx => {
@@ -9,7 +12,9 @@ Containers.registrar('agenda', ctx => {
   const salvo = LS.get(CACHE, null) || {};
   const est = { itens: salvo.itens || [], meta: salvo.meta || null, sig: salvo.sig || '', em: salvo.em || 0, carregando: false, erro: '' };
   const sig = () => a().aba + '!' + a().intervalo;
-  const salvarCache = () => LS.set(CACHE, { itens: est.itens, meta: est.meta, sig: est.sig, em: est.em });
+  const salvarCache = () => LS.set(CACHE, { itens: est.itens.filter(x => !x.pend), meta: est.meta, sig: est.sig, em: est.em });   // item ainda não gravado fica de fora
+  let seq = 0, ed = null, pend = 0, fila = Promise.resolve(), mudancas = 0;   // ed = edição aberta na lista; pend = gravações no ar; mudancas = conta as mudanças feitas na tela
+  est.itens.forEach(x => { x.uid = ++seq; });                                // uid: identifica o item na tela (a linha da planilha ainda pode não existir)
   const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const h = Util.h;
   const p2 = n => String(n).padStart(2, '0');
@@ -31,28 +36,7 @@ Containers.registrar('agenda', ctx => {
   const avisarMudou = () => Util.avisar('agenda-atualizada');
   const lista = q('.ag-lista');
 
-  const dlg = Util.dialogo('dlg-ag', `
-    <div class="dlg-corpo">
-      <div class="dlg-topo"><h2 class="ag-d-titulo">Item da agenda</h2><button type="button" class="fechar">Fechar</button></div>
-      <form class="pl-form ag-form" autocomplete="off">
-        <label><span>Descrição</span><input type="text" class="ag-f-desc" maxlength="120"></label>
-        <div class="pl-2">
-          <label><span>Data</span><input type="date" class="ag-f-data"></label>
-          <label><span>Hora (opcional)</span><input type="time" class="ag-f-hora"></label>
-        </div>
-        <label><span>Categoria</span><input type="text" class="ag-f-cat" list="ag-cats-${ctx.id}" maxlength="40"></label>
-        <datalist id="ag-cats-${ctx.id}"></datalist>
-        <label class="teste ag-feita-l"><input type="checkbox" class="ag-f-feita"> Concluído</label>
-        <p class="pl-erro ag-erro" role="alert" hidden></p>
-        <div class="pl-btns">
-          <button type="button" class="pl-btn perigo ag-excluir">Excluir</button>
-          <span class="grow"></span>
-          <button type="button" class="pl-btn ag-cancelar">Cancelar</button>
-          <button type="submit" class="pl-btn pri ag-salvar">Salvar</button>
-        </div>
-      </form>
-    </div>`);
-  const qd = s => dlg.querySelector(s);
+  raiz.append(h('datalist')); raiz.lastChild.id = 'ag-cats-' + ctx.id;   // sugestões de categoria para a edição na linha
 
   /* ---------- ler: linhas da planilha -> itens [{desc, hora, cat, feita, t:[ano, mês, dia]}] ordenados por data e hora ---------- */
   // As colunas são achadas pelo cabeçalho (Status, Descrição, Horas, Categoria, Data) se ele estiver no intervalo;
@@ -77,7 +61,7 @@ Containers.registrar('agenda', ctx => {
       if (!d || isNaN(d)) return;                                   // linha sem data
       const hm = /(\d{1,2}):(\d{2})/.exec(e[col.hora] || '');
       itens.push({
-        linha, desc, cat: String(e[col.cat] || '').trim(), t: [d.getFullYear(), d.getMonth(), d.getDate()],
+        uid: ++seq, linha, desc, cat: String(e[col.cat] || '').trim(), t: [d.getFullYear(), d.getMonth(), d.getDate()],
         hora: hm && (+hm[1] || +hm[2]) ? hm[1].padStart(2, '0') + ':' + hm[2] : '',       // 00:00 = sem horário
         feita: col.st >= 0 && (v[col.st] === true || /^(true|verdadeiro|sim)$/i.test(String(e[col.st])))
       });
@@ -86,8 +70,9 @@ Containers.registrar('agenda', ctx => {
       throw new Error('não reconheci a agenda. Primeiras linhas lidas: ' + ex.filter(l => l.some(c => String(c).trim())).slice(0, 2).map(l => l.join(' | ')).join(' / ') + '. Confira a aba e as células (ex.: A2:G, com o cabeçalho).');
     const L = c => c >= 0 ? letra(c0 + c) : '';
     est.meta = { aba: a().aba, primeira: l0 + ini, editavel: !r.truncado && !!m0, cols: { st: L(col.st), desc: L(col.desc), hora: L(col.hora), cat: L(col.cat), data: L(col.data) } };
-    return itens.sort((x, y) => Date.UTC(...x.t) - Date.UTC(...y.t) || x.hora.localeCompare(y.hora));
+    return ordenar(itens);
   }
+  const ordenar = itens => itens.sort((x, y) => Date.UTC(...x.t) - Date.UTC(...y.t) || x.hora.localeCompare(y.hora));
 
   /* ---------- desenhar ---------- */
   const msg = (t, erro) => lista.replaceChildren(h('p', 'ag-msg' + (erro ? ' erro' : ''), t));
@@ -95,6 +80,7 @@ Containers.registrar('agenda', ctx => {
   function render() {
     q('.ag-titulo').textContent = a().titulo;
     raiz.style.setProperty('--ag-altura', String(Math.max(8, Number(a().altura) || 32)));
+    if (ed) return;                                                  // edição aberta: a lista só é refeita quando ela fechar
     if (!Sheets.pronto()) return msg('Configure a URL e o token (Configurações) para ver a agenda.');
     if (est.sig !== sig()) return msg(est.carregando ? 'Carregando…' : est.erro ? 'Não consegui carregar: ' + est.erro : 'Ainda sem dados. Use ↻.', !!est.erro && !est.carregando);
     const { vermelho, amarelo, concluidas } = a();
@@ -105,7 +91,7 @@ Containers.registrar('agenda', ctx => {
     const rel = d => d === 0 ? 'hoje' : d === 1 ? 'amanhã' : d < 0 ? 'há ' + (-d) + ' d' : 'em ' + d + ' d';
     lista.replaceChildren(...itens.map(x => {
       const dias = Math.round((Date.UTC(...x.t) - h0) / 864e5);
-      const li = h('div', 'ag-item' + (x.feita ? ' feita' : '')); li.dataset.linha = x.linha; li.tabIndex = 0; li.title = 'Clique para editar';
+      const li = h('div', 'ag-item' + (x.feita ? ' feita' : '')); li.dataset.uid = x.uid; li.tabIndex = 0; li.title = 'Clique para editar';
       const data = h('div', 'ag-data v' + nivel(dias));
       data.append(h('b', null, p2(x.t[2]) + '/' + p2(x.t[1] + 1) + (x.t[0] !== hoje.getFullYear() ? '/' + String(x.t[0]).slice(2) : '')),
         h('small', null, DIAS[new Date(x.t[0], x.t[1], x.t[2]).getDay()] + ' · ' + rel(dias)));
@@ -120,18 +106,21 @@ Containers.registrar('agenda', ctx => {
   }
 
   function rodape() {
-    q('.ag-status').textContent = Util.textoAtualizado(est);
+    q('.ag-status').textContent = pend ? 'Salvando…' : Util.textoAtualizado(est);
+    q('.ag-status').classList.toggle('salvando', pend > 0);
   }
 
   async function carregar(forcar) {
     if (!Sheets.pronto()) { render(); return; }
-    if (est.carregando) return;
+    if (est.carregando || pend) return;                           // gravando: a tela já está mais nova que a planilha
     if (!forcar && est.sig === sig() && Date.now() - est.em < TTL) { rodape(); return; }
     est.carregando = true; est.erro = ''; render(); rodape();
+    const v0 = mudancas;
     try {
       Util.exigirInternet();
       const d = await Sheets.ler(a().aba, a().intervalo, { retorno: ['exibidos', 'valores'], limite: 3000 });
       if (!d.ok) throw new Error(d.erro || 'resposta inesperada');
+      if (v0 !== mudancas) return;                                  // você mexeu enquanto lia: essa leitura já é velha
       est.itens = converter(d); est.sig = sig(); est.em = Date.now();
       salvarCache(); avisarMudou();
     } catch (err) {
@@ -141,7 +130,7 @@ Containers.registrar('agenda', ctx => {
 
   q('.ag-atualizar').onclick = () => carregar(true);
 
-  /* ---------- editar, concluir, adicionar e excluir (grava na planilha) ---------- */
+  /* ---------- editar, concluir, adicionar e excluir: a tela muda na hora e a planilha recebe em segundo plano ---------- */
   const valHora = s => { const m = /^(\d{1,2}):(\d{2})/.exec(s || ''); return m ? (+m[1] * 60 + +m[2]) / 1440 : 0; };   // fração do dia (00:00 = sem horário)
   const valData = t => ({ iso: new Date(t[0], t[1], t[2], 12).toISOString(), como: 'data' });
   async function gravar(itens) {
@@ -149,6 +138,7 @@ Containers.registrar('agenda', ctx => {
     if (!d.ok) throw new Error(d.erro || 'resposta inesperada');
     if (!d.resultados) throw new Error('o script está numa versão antiga: atualize o apps-script.gs');
     const ruim = d.resultados.find(r => !r.ok); if (ruim) throw new Error(ruim.erro || 'o script recusou a gravação');
+    return d.resultados;
   }
   // escreve só as colunas pedidas (a coluna Rest e o ID ficam como estão); colunas vizinhas vão numa escrita só
   function escritas(linha, campos) {
@@ -161,64 +151,115 @@ Containers.registrar('agenda', ctx => {
     return out;
   }
   const podeEditar = () => { if (!est.meta || !est.meta.editavel) { est.erro = 'edição indisponível: releia a agenda (↻) ou confira o intervalo'; rodape(); return false; } return true; };
-  const achar = linha => est.itens.find(x => x.linha === +linha);
+  const achar = uid => est.itens.find(x => x.uid === +uid);
+  const linhaDe = x => { if (x.linha == null) throw new Error('o item anterior não foi gravado'); return x.linha; };   // item novo recebe a linha quando o script responde
 
-  lista.addEventListener('click', async ev => {
-    const li = ev.target.closest('.ag-item'); if (!li) return;
-    const x = achar(li.dataset.linha); if (!x) return;
-    if (!ev.target.closest('.ag-chk')) { abrir(x); return; }
-    if (!podeEditar()) return;
-    x.feita = !x.feita; salvarCache(); render(); avisarMudou();       // avisa já: o gráfico remarca os dias "Imp"
-    try { await gravar(escritas(x.linha, { st: x.feita })); est.erro = ''; }
-    catch (err) { x.feita = !x.feita; est.erro = 'não consegui gravar: ' + err.message; salvarCache(); render(); avisarMudou(); }
-    rodape();
-  });
-  lista.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target.classList.contains('ag-item')) { const x = achar(ev.target.dataset.linha); if (x) abrir(x); } });
-
-  let editando = null;
-  function abrir(x) {
-    if (!podeEditar()) return;
-    editando = x || null;
-    qd('.ag-d-titulo').textContent = x ? 'Editar item' : 'Novo item';
-    qd('.ag-f-desc').value = x ? x.desc : '';
-    qd('.ag-f-data').value = x ? x.t[0] + '-' + p2(x.t[1] + 1) + '-' + p2(x.t[2]) : '';
-    qd('.ag-f-hora').value = x ? x.hora : '';
-    qd('.ag-f-cat').value = x ? x.cat : '';
-    qd('.ag-f-feita').checked = !!(x && x.feita); qd('.ag-feita-l').hidden = !x; qd('.ag-excluir').hidden = !x;
-    qd('datalist').replaceChildren(...[...new Set(['Imp', 'Outros', ...est.itens.map(i => i.cat).filter(Boolean)])].map(c => new Option('', c)));
-    qd('.ag-erro').hidden = true;
-    dlg.showModal(); qd('.ag-f-desc').focus();
+  // Põe a gravação na fila (uma de cada vez, na ordem). pedido() é chamado só na hora de enviar; aoOk(resultados) e desfazer() são da tela.
+  function enfileirar(pedido, aoOk, desfazer) {
+    pend++; mudancas++; rodape();
+    fila = fila.then(async () => {
+      try { const r = await gravar(pedido()); est.erro = ''; if (aoOk) aoOk(r); }
+      catch (err) {
+        desfazer(); mudancas++; est.em = 0; salvarCache(); render(); avisarMudou();
+        mostrar('erro', 'Agenda: não consegui gravar (' + err.message + '). Desfiz a mudança na tela.');
+        est.erro = 'não consegui gravar: ' + err.message;
+      } finally {
+        pend--; rodape();
+        if (!pend && !est.carregando && est.em === 0) carregar(true);       // depois de uma falha, relê para a tela voltar a bater com a planilha
+      }
+    });
   }
+
+  function alternar(x) {
+    if (!podeEditar()) return;
+    const antes = x.feita; x.feita = !antes; salvarCache(); render(); avisarMudou();       // avisa já: o gráfico remarca os dias "Imp"
+    enfileirar(() => escritas(linhaDe(x), { st: x.feita }), null, () => { x.feita = antes; });
+  }
+
+  function editarItem(x, n) {
+    const campos = {};
+    if (n.desc !== x.desc) campos.desc = n.desc;
+    if (n.hora !== x.hora) campos.hora = valHora(n.hora);
+    if (n.cat !== x.cat) campos.cat = n.cat;
+    if (n.t.join() !== x.t.join()) campos.data = valData(n.t);
+    if (!Object.keys(campos).length) return;                         // nada mudou: nada a enviar
+    const velho = { desc: x.desc, hora: x.hora, cat: x.cat, t: x.t };
+    Object.assign(x, n); ordenar(est.itens); salvarCache(); avisarMudou();
+    enfileirar(() => escritas(linhaDe(x), campos), null, () => { Object.assign(x, velho); ordenar(est.itens); });
+  }
+
+  function criarItem(n) {
+    const m = est.meta, x = Object.assign({ uid: ++seq, linha: null, feita: false, pend: true }, n);
+    est.itens.push(x); ordenar(est.itens); avisarMudou();
+    enfileirar(() => {
+      const cols = {}; [['desc', x.desc], ['hora', valHora(x.hora)], ['cat', x.cat], ['data', valData(x.t)]].forEach(([k, v]) => { if (m.cols[k]) cols[m.cols[k]] = v; });
+      return [{ acao: 'anexar', aba: m.aba, linhaInicial: m.primeira, colunaChave: m.cols.desc, colunas: cols }];
+    }, r => { x.linha = typeof r[0].linha === 'number' ? r[0].linha : null; delete x.pend; if (x.linha == null) est.em = 0; salvarCache(); },
+    () => { est.itens = est.itens.filter(i => i !== x); });
+  }
+
+  function excluirItem(x) {
+    const pos = est.itens.indexOf(x), cols = est.meta.cols;
+    est.itens.splice(pos, 1); salvarCache(); avisarMudou();
+    enfileirar(() => { const l = linhaDe(x); return [
+      ...['desc', 'hora', 'cat', 'data'].filter(k => cols[k]).map(k => ({ acao: 'limpar', aba: est.meta.aba, intervalo: cols[k] + l })),
+      ...escritas(l, { st: false })]; },
+    null, () => { est.itens.splice(Math.min(pos, est.itens.length), 0, x); ordenar(est.itens); });
+  }
+
+  /* ---------- edição na própria linha ---------- */
+  const hojeISO = () => { const d = new Date(); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); };
+  function criarForm(x) {
+    const f = h('form', 'ag-item ag-edit'); f.autocomplete = 'off'; f.noValidate = true;
+    const campo = (tipo, cls, rotulo, extra) => { const i = h('input', cls); i.type = tipo; i.title = rotulo; i.setAttribute('aria-label', rotulo); return Object.assign(i, extra); };
+    const desc = campo('text', 'ag-f-desc', 'Descrição', { maxLength: 120, placeholder: 'Descrição', value: x ? x.desc : '' });
+    const data = campo('date', 'ag-f-data', 'Data', { value: x ? x.t[0] + '-' + p2(x.t[1] + 1) + '-' + p2(x.t[2]) : hojeISO() });
+    const hora = campo('time', 'ag-f-hora', 'Hora (opcional)', { value: x ? x.hora : '' });
+    const cat = campo('text', 'ag-f-cat', 'Categoria', { maxLength: 40, placeholder: 'Categoria', value: x ? x.cat : '' }); cat.setAttribute('list', 'ag-cats-' + ctx.id);
+    const linha = h('div', 'ag-linha'); linha.append(data, hora, cat);
+    const erro = h('p', 'pl-erro ag-erro'); erro.hidden = true; erro.setAttribute('role', 'alert');
+    const btns = h('div', 'pl-btns');
+    const btn = (cls, txt, tipo) => { const b = h('button', 'pl-btn ' + cls, txt); b.type = tipo || 'button'; return b; };
+    const excluir = btn('perigo ag-excluir', 'Excluir'), cancelar = btn('ag-cancelar', 'Cancelar'), salvar = btn('pri ag-salvar', 'Salvar', 'submit');
+    if (x) btns.append(excluir);
+    btns.append(h('span', 'grow'), cancelar, salvar);
+    f.append(desc, linha, erro, btns);
+    const falha = t => { erro.textContent = t; erro.hidden = false; };
+    cancelar.onclick = () => fechar();
+    excluir.onclick = () => { if (!confirm('Excluir "' + x.desc + '" da agenda? Isso limpa a linha na planilha.')) return; fechar(); excluirItem(x); render(); };
+    f.addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); fechar(); } });   // Esc cancela (e não fecha o painel)
+    f.addEventListener('submit', ev => {                              // Enter em qualquer campo cai aqui
+      ev.preventDefault();
+      const mm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data.value);
+      if (!desc.value.trim()) { falha('Escreva a descrição.'); desc.focus(); return; }
+      if (!mm) { falha('Escolha a data.'); data.focus(); return; }
+      const n = { desc: desc.value.trim(), t: [+mm[1], +mm[2] - 1, +mm[3]], hora: hora.value, cat: cat.value.trim() };
+      fechar(); if (x) editarItem(x, n); else criarItem(n);
+      render();
+    });
+    return f;
+  }
+  function fechar() { ed = null; render(); }
+  function abrir(x) {                                                 // x = item para editar, ou null para um item novo
+    if (!podeEditar()) return;
+    if (ed) { ed = null; render(); }                                   // outra edição aberta: cancela e refaz a lista
+    const f = criarForm(x); ed = { x, f };
+    const dl = raiz.querySelector('datalist');
+    dl.replaceChildren(...[...new Set(['Imp', 'Outros', ...est.itens.map(i => i.cat).filter(Boolean)])].map(c => new Option('', c)));
+    if (x) { const li = lista.querySelector('[data-uid="' + x.uid + '"]'); if (!li) { ed = null; return; } li.replaceWith(f); }
+    else { const m = lista.querySelector('.ag-msg'); if (m) m.remove(); lista.prepend(f); lista.scrollTop = 0; }
+    f.querySelector('.ag-f-desc').focus(); f.scrollIntoView({ block: 'nearest' });
+  }
+
+  lista.addEventListener('click', ev => {
+    const li = ev.target.closest('.ag-item'); if (!li || li.classList.contains('ag-edit')) return;
+    const x = achar(li.dataset.uid); if (!x) return;
+    if (ev.target.closest('.ag-chk')) { if (ed) { ed = null; render(); } alternar(x); return; }
+    abrir(x);
+  });
+  lista.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target.classList.contains('ag-item') && !ev.target.classList.contains('ag-edit')) { const x = achar(ev.target.dataset.uid); if (x) abrir(x); } });
   q('.ag-nova').onclick = () => abrir(null);
-  qd('.ag-cancelar').onclick = () => dlg.close();
-
-  async function executar(btn, texto, fn) {
-    btn.disabled = true; const t0 = btn.textContent; btn.textContent = texto;
-    try { await fn(); dlg.close(); await carregar(true); }
-    catch (err) { qd('.ag-erro').textContent = 'Não consegui gravar: ' + err.message; qd('.ag-erro').hidden = false; }
-    finally { btn.disabled = false; btn.textContent = t0; }
-  }
-  qd('.ag-form').addEventListener('submit', ev => {
-    ev.preventDefault();
-    const desc = qd('.ag-f-desc').value.trim(), dv = qd('.ag-f-data').value, mm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dv);
-    const erro = t => { qd('.ag-erro').textContent = t; qd('.ag-erro').hidden = false; };
-    if (!desc) return erro('Escreva a descrição.');
-    if (!mm) return erro('Escolha a data.');
-    const t = [+mm[1], +mm[2] - 1, +mm[3]], hora = qd('.ag-f-hora').value, cat = qd('.ag-f-cat').value.trim(), m = est.meta;
-    const btn = qd('.ag-salvar');
-    if (editando) executar(btn, 'Salvando…', () => gravar(escritas(editando.linha, { st: qd('.ag-f-feita').checked, desc, hora: valHora(hora), cat, data: valData(t) })));
-    else {
-      const cols = {}; [['desc', desc], ['hora', valHora(hora)], ['cat', cat], ['data', valData(t)]].forEach(([k, v]) => { if (m.cols[k]) cols[m.cols[k]] = v; });
-      executar(btn, 'Salvando…', () => gravar([{ acao: 'anexar', aba: m.aba, linhaInicial: m.primeira, colunaChave: m.cols.desc, colunas: cols }]));
-    }
-  });
-  qd('.ag-excluir').onclick = () => {
-    if (!editando || !confirm('Excluir "' + editando.desc + '" da agenda? Isso limpa a linha na planilha.')) return;
-    const l = editando.linha;
-    executar(qd('.ag-excluir'), 'Excluindo…', () => gravar([
-      ...['desc', 'hora', 'cat', 'data'].filter(k => est.meta.cols[k]).map(k => ({ acao: 'limpar', aba: est.meta.aba, intervalo: est.meta.cols[k] + l })),
-      ...escritas(l, { st: false })]));
-  };
+  window.addEventListener('beforeunload', ev => { if (pend) { ev.preventDefault(); ev.returnValue = ''; } });   // fechar a aba com gravação no ar: o navegador pergunta
 
   /* ---------- configuração: o ⚙ abre o painel padrão ao lado (o container continua visível) ---------- */
   const CAMPOS = [
