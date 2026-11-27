@@ -56,3 +56,5 @@
   .gf-editar:hover { border-color: var(--cor); color: var(--cor); }
   .gf-card.arrastando { opacity: .6; box-shadow: 0 10px 28px rgba(35, 32, 58, .25); }
   body.arrastando-gf { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+  /* legenda dos compromissos nos meses: bolinha com as cores do prazo */
+  .gf-leg-imp.gf-leg-cmp b { width: .6rem; height: .6rem; border-radius: 50%; transform: none; opacity: 1; background: linear-gradient(90deg, #F2A7A7 33%, #FFD966 33% 66%, #B7E1CD 66%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 45%, transparent); }

@@ -3,6 +3,7 @@
    Edição rápida: clique no item e ele vira um formulário na própria linha (Enter salva, Esc cancela). A tela muda NA HORA e a gravação
    vai em segundo plano, em fila (a linha de status mostra "Salvando…"); só os campos que mudaram são enviados, e a agenda NÃO é relida
    depois de gravar. Se o script recusar, a mudança é desfeita e você é avisado.
+   Oferece aos outros containers: 'agenda-itens' (a lista) e 'agenda-config' ({ vermelho, amarelo }, para colorir pelo prazo igual à lista).
    Configuração (em js/paginas.js): { aba, intervalo, vermelho, amarelo, concluidas, titulo, altura }.
      altura = altura máxima da lista, em rem (1 rem ≈ 16 px); passou disso, a lista rola (padrão 32). */
 Containers.registrar('agenda', ctx => {
@@ -33,6 +34,7 @@ Containers.registrar('agenda', ctx => {
   const q = s => raiz.querySelector(s);
   // outros containers (ex.: o gráfico semanal) leem os itens da agenda por aqui
   ctx.publicar('agenda-itens', () => est.itens);
+  ctx.publicar('agenda-config', () => [{ vermelho: a().vermelho, amarelo: a().amarelo }]);   // os gráficos usam as mesmas faixas de prazo
   const avisarMudou = () => Util.avisar('agenda-atualizada');
   const lista = q('.ag-lista');
 
@@ -279,6 +281,7 @@ Containers.registrar('agenda', ctx => {
       ctx.ajustar(mud); q('.ag-titulo').textContent = a().titulo; Painel.titulo(a().titulo);
       render(); if (ctx.visivel() && (chave === 'aba' || chave === 'intervalo')) carregar();
       if (chave === 'vermelho') Painel.atualizar();
+      if (chave === 'vermelho' || chave === 'amarelo') avisarMudou();               // as bolinhas dos gráficos mudam de cor
     }
   });
 

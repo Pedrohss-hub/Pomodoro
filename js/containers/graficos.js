@@ -1,5 +1,9 @@
 /* Tipo de container "graficos": gráficos de barras, linhas e histograma lidos de intervalos da planilha, desenhados em SVG,
    com período anterior apagado, dia da semana, marcas de itens "Imp" da agenda e cache.
+   Nos gráficos de BARRAS com um mês por barra, bolinhas sobre a barra mostram os compromissos PENDENTES da agenda daquele mês, na cor do prazo
+   (as mesmas faixas da Agenda: atrasado = preto, vermelho, amarelo, verde). Opções no ⚙ do gráfico: "compromissos" ('auto' liga sozinho se os
+   rótulos forem meses | 'sim' | 'nao'), "compromissosMax" (bolinhas por mês, padrão 5; o resto vira +N) e "anoMeses" (ano, quando o rótulo só traz o mês;
+   vazio = ano de hoje). O mês vem da data da célula ou do rótulo (jan, janeiro/26, 03/2026, 2026-03). Não lê o Sheets: usa os itens que a Agenda já tem.
    Em cada gráfico de linhas, "frente" ('liq' padrão | 'per') escolhe a linha desenhada por cima.
    Configuração (em js/paginas.js): { titulo, graficos: [lista] } (null = lista padrão; o ⚙ do quadro edita a lista). */
 Containers.registrar('graficos', ctx => {
@@ -35,6 +39,45 @@ Containers.registrar('graficos', ctx => {
   const impDoDia = d => ctx.consultar('agenda-itens')
     .filter(x => !x.feita && /^imp/i.test(x.cat) && x.t[0] === d.getFullYear() && x.t[1] === d.getMonth() && x.t[2] === d.getDate())
     .map(x => x.desc + (x.hora ? ' · ' + x.hora : ''));
+  /* ---------- compromissos da agenda sobre as barras dos meses ---------- */
+  const NOMES_MES = { janeiro: 0, jan: 0, fevereiro: 1, fev: 1, marco: 2, mar: 2, abril: 3, abr: 3, maio: 4, mai: 4, junho: 5, jun: 5, julho: 6, jul: 6, agosto: 7, ago: 7, setembro: 8, set: 8, outubro: 9, out: 9, novembro: 10, nov: 10, dezembro: 11, dez: 11 };
+  const COR_PRAZO = ['#111111', '#F2A7A7', '#FFD966', '#B7E1CD'];      // as mesmas cores da data na lista da Agenda (css/agenda.css): v0 a v3
+  const p2 = n => String(n).padStart(2, '0');
+  // mês (0-11) e ano (ou null, se o rótulo só traz o mês) de uma linha [rótulo, líquido, perdido, valor bruto]; null se não for um mês
+  function mesDeLinha(l) {
+    const bruto = String(l[3] || '');
+    if (/^\d{4}-\d{2}-\d{2}T/.test(bruto)) {                           // célula de data: +12 h tira o risco do fuso empurrar para o mês vizinho
+      const d = new Date(Date.parse(bruto) + 12 * 36e5);
+      if (!isNaN(d)) return { m: d.getMonth(), a: d.getFullYear() };
+    }
+    const t = String(l[0] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    let r;
+    if ((r = /^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/.exec(t))) return +r[2] >= 1 && +r[2] <= 12 ? { m: +r[2] - 1, a: +r[1] } : null;        // 2026-03
+    if ((r = /^(?:\d{1,2}\/)?(\d{1,2})\/(\d{4})$/.exec(t))) return +r[1] >= 1 && +r[1] <= 12 ? { m: +r[1] - 1, a: +r[2] } : null;     // 03/2026 ou 15/03/2026
+    if ((r = /^([a-z]+)\.?(?:\s*(?:de|\/|-)?\s*(\d{2}|\d{4}))?$/.exec(t)) && r[1] in NOMES_MES) return { m: NOMES_MES[r[1]], a: r[2] ? (+r[2] < 100 ? 2000 + +r[2] : +r[2]) : null };   // mar, março, mar/26
+    return null;
+  }
+  // compromissos pendentes por linha (lista de { dia, nome, nivel } ou null); null = este gráfico não mostra compromissos
+  function compromissosPorLinha(g, linhas) {
+    if (g.tipo !== 'barras' || g.compromissos === 'nao') return null;
+    const aCfg = Number(g.anoMeses), ano = aCfg >= 1900 && aCfg <= 2200 ? aCfg : new Date().getFullYear();
+    const ks = linhas.map(l => { const r = mesDeLinha(l); return r ? (r.a != null ? r.a : ano) * 12 + r.m : null; });
+    const ok = ks.filter(k => k != null);
+    // automático: só liga se (quase) todas as barras são meses, sem repetir; ligado à força: serve a qualquer gráfico com meses nos rótulos
+    if (!ok.length || (g.compromissos !== 'sim' && (ok.length < 2 || ok.length < linhas.length * 0.6 || new Set(ok).size !== ok.length))) return null;
+    const itens = ctx.consultar('agenda-itens').filter(x => !x.feita);
+    if (!itens.length) return null;
+    const cfgAg = ctx.consultar('agenda-config')[0] || {}, verm = cfgAg.vermelho != null ? +cfgAg.vermelho : 7, amar = cfgAg.amarelo != null ? +cfgAg.amarelo : 30;
+    const hj = new Date(), h0 = Date.UTC(hj.getFullYear(), hj.getMonth(), hj.getDate()), por = new Map();
+    itens.slice().sort((x, y) => Date.UTC(...x.t) - Date.UTC(...y.t) || String(x.hora).localeCompare(String(y.hora))).forEach(x => {
+      const dias = Math.round((Date.UTC(...x.t) - h0) / 864e5), k = x.t[0] * 12 + x.t[1];
+      if (!por.has(k)) por.set(k, []);
+      por.get(k).push({ dia: p2(x.t[2]) + '/' + p2(x.t[1] + 1), nome: x.desc, nivel: dias < 0 ? 0 : dias <= verm ? 1 : dias <= amar ? 2 : 3 });
+    });
+    const visto = new Set();
+    const lista = ks.map(k => { if (k == null || visto.has(k)) return null; visto.add(k); return por.get(k) || null; });
+    return lista.some(Boolean) ? lista : null;
+  }
   const h = Util.h;
   // Hora ou duração vira horas (número); número puro segue a opção "formato dos tempos" das Configurações da planilha (cfg.planilha)
   function emHoras(valor, formato, exibido) {
@@ -55,16 +98,27 @@ Containers.registrar('graficos', ctx => {
   const passoN = max => [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000].find(p => max / p <= 5) || 2000;
 
   /* ---------- desenho do gráfico (SVG feito à mão, sem bibliotecas) ---------- */
-  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h', dicas, marcas, hoje, frente) {
+  function desenharSvg(plot, tipo, rot, series, tip, unid = 'h', dicas, marcas, hoje, frente, cmps, cmpsMax = 5) {
     const velho = plot.querySelector('svg'); if (velho) velho.remove();
     tip.hidden = true;
-    const W = Math.max(260, plot.clientWidth), H = 240, ML = 46, MR = 10, MT = 12, MB = 30;
-    const pw = W - ML - MR, ph = H - MT - MB, n = rot.length;
+    const W = Math.max(260, plot.clientWidth), ML = 46, MR = 10, MB = 30;
+    let H = 240, MT = 12;                                       // H e MT crescem só se as bolinhas dos compromissos precisarem de espaço em cima
+    const pw = W - ML - MR, ph = H - MT - MB, n = rot.length;   // ph não muda (a faixa extra fica acima do gráfico)
     const vis = series.filter(s => !s.oculta);
     const max = Math.max(unid === 'n' ? 1 : 0.5, ...vis.flatMap(s => s.valores));
     const st = unid === 'n' ? passoN(max) : passo(max), topo = Math.ceil(max / st - 1e-9) * st;
-    const y = v => MT + ph - (v / topo) * ph;
     const gw = pw / n;
+    // bolinhas dos compromissos (só barras): empilhadas logo acima da barra mais alta de cada mês; a faixa de cima cresce o quanto precisar
+    const prim0 = vis.filter(s => !s.fundo), valorMes = i => Math.max(0, ...prim0.map(s => s.valores[i] || 0));
+    const rb = Math.max(2.5, Math.min(4.5, gw / 2 - 1.5)), passoB = 2 * rb + 2;
+    const mostradas = l => Math.min(l.length, cmpsMax);
+    const alturaB = l => 4 + mostradas(l) * passoB + (l.length > cmpsMax ? 11 : 0);
+    const bol = tipo === 'barras' && cmps && cmps.some(Boolean) ? cmps : null;
+    if (bol) {
+      const extra = Math.max(0, ...bol.map((l, i) => l ? alturaB(l) - ph * (1 - valorMes(i) / topo) - (MT - 2) : 0));
+      MT += Math.ceil(extra); H += Math.ceil(extra);
+    }
+    const y = v => MT + ph - (v / topo) * ph;
     const svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Gráfico de estudo' });
     svg.style.cssText = 'width:100%;height:auto;display:block;touch-action:pan-y';
 
@@ -108,10 +162,18 @@ Containers.registrar('graficos', ctx => {
       prim.forEach((s, si) => s.valores.forEach((v, i) => barra(xb(si, i) + .5, v, bw - 1, s.cor, 1)));
     }
 
+    if (bol) bol.forEach((l, i) => {
+      if (!l) return;
+      const cx = ML + gw * (i + .5), base = y(valorMes(i)) - 4, ns = mostradas(l);
+      for (let k = 0; k < ns; k++)
+        svg.append(sv('circle', { cx, cy: base - rb - k * passoB, r: rb, fill: COR_PRAZO[l[k].nivel], stroke: 'var(--ink)', 'stroke-opacity': 0.45, 'stroke-width': 1, 'data-c': i, 'data-k': k }));
+      if (l.length > ns) svg.append(sv('text', { x: cx, y: base - ns * passoB - 2, 'text-anchor': 'middle', 'font-size': 9, 'font-weight': 700, fill: 'var(--soft)', 'data-c': i }, '+' + (l.length - ns)));
+    });
+
     function mostrar(ev) {
       const r = svg.getBoundingClientRect(), esc = W / r.width;
       const i = Math.floor(((ev.clientX - r.left) * esc - ML) / gw);
-      if (i < 0 || i >= n) { esconder(); return; }
+      if (i < 0 || i >= n) { esconder(); return -1; }
       marca.setAttribute('x', ML + gw * i); marca.setAttribute('visibility', 'visible');
       tip.replaceChildren();
       tip.append(h('b', null, (dicas && dicas[i]) || rot[i]));
@@ -124,14 +186,32 @@ Containers.registrar('graficos', ctx => {
         const t2 = h('b', null, 'Importante'); t2.style.marginTop = '.3rem'; tip.append(t2);
         marcas[i].forEach(nm => { const l = h('div', 'gf-tip-l'), p = h('i'); p.style.background = IMP; l.append(p, document.createTextNode(nm)); tip.append(l); });
       }
+      if (bol && bol[i]) {                                           // compromissos do mês: dd/mm e nome; o da bolinha sob o dedo/mouse fica em negrito
+        const sel = ev.target && ev.target.getAttribute ? Number(ev.target.getAttribute('data-k')) : NaN, t3 = h('b', null, 'Compromissos'); t3.style.marginTop = '.3rem'; tip.append(t3);
+        bol[i].slice(0, 12).forEach((c, k) => {
+          const l = h('div', 'gf-tip-l'), p = h('i'); p.style.background = COR_PRAZO[c.nivel]; p.style.boxShadow = 'inset 0 0 0 1px rgba(128,128,128,.7)';
+          const tx = h('span', null, c.dia + ' · ' + c.nome); if (k === sel) tx.style.fontWeight = '700';
+          l.append(p, tx); tip.append(l);
+        });
+        if (bol[i].length > 12) tip.append(h('div', 'gf-tip-l', '+' + (bol[i].length - 12) + ' outros'));
+      }
       tip.hidden = false;
       const cx = (ML + gw * (i + .5)) / esc;
       tip.style.left = Math.max(0, Math.min(cx + 12, plot.clientWidth - tip.offsetWidth)) + 'px';
+      return i;
     }
+    // toque: soltar o dedo esconderia a dica na hora; num mês com compromissos ela fica uns segundos (ou até tocar fora do gráfico)
+    let fixo = false, tempo = 0;
+    const largar = () => { fixo = false; clearTimeout(tempo); document.removeEventListener('pointerdown', fora, true); esconder(); };
+    const fora = ev => { if (!svg.contains(ev.target)) largar(); };
     function esconder() { marca.setAttribute('visibility', 'hidden'); tip.hidden = true; }
     svg.addEventListener('pointermove', mostrar);
-    svg.addEventListener('pointerdown', mostrar);
-    svg.addEventListener('pointerleave', esconder);
+    svg.addEventListener('pointerdown', ev => {
+      const i = mostrar(ev);
+      clearTimeout(tempo); document.removeEventListener('pointerdown', fora, true); fixo = false;
+      if (ev.pointerType !== 'mouse' && i >= 0 && bol && bol[i]) { fixo = true; tempo = setTimeout(largar, 6000); document.addEventListener('pointerdown', fora, true); }
+    });
+    svg.addEventListener('pointerleave', () => { if (!fixo) esconder(); });
     plot.prepend(svg);
   }
 
@@ -151,7 +231,7 @@ Containers.registrar('graficos', ctx => {
     let ultimo = null, larg = 0;
 
     const aviso = (t, erro) => { msg.textContent = t; msg.className = 'gf-msg' + (erro ? ' erro' : ''); msg.hidden = !t; };
-    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid, ultimo.dicas, ultimo.marcas, ultimo.hoje, ultimo.frente); } };
+    const pintar = () => { if (ultimo && plot.clientWidth > 0) { larg = plot.clientWidth; desenharSvg(plot, g.tipo, ultimo.rot, ultimo.series, tip, ultimo.unid, ultimo.dicas, ultimo.marcas, ultimo.hoje, ultimo.frente, ultimo.cmps, ultimo.cmpsMax); } };
 
     // histograma: quantas vezes você começou a estudar em cada faixa de horário do dia
     function histograma(d) {
@@ -191,7 +271,8 @@ Containers.registrar('graficos', ctx => {
       if (ant) series.push({ nome: 'Anterior', chave: 'ant', cor: CORES.liq, fundo: true, valores: ant, oculta: ocultas.has('ant') });
       const marcas = g.imp ? linhas.map(l => { const d = dataLinha(l), n = d ? impDoDia(d) : []; return n.length ? n : null; }) : null;
       const hj = new Date(), hoje = linhas.findIndex(l => { const d = dataLinha(l); return d && d.getFullYear() === hj.getFullYear() && d.getMonth() === hj.getMonth() && d.getDate() === hj.getDate(); });
-      ultimo = { rot, series, dicas, marcas, hoje: hoje >= 0 ? hoje : null, frente: g.frente || 'liq' };
+      const cmps = compromissosPorLinha(g, linhas), cmpsMax = Math.min(10, Math.max(1, Number(g.compromissosMax) || 5));
+      ultimo = { rot, series, dicas, marcas, hoje: hoje >= 0 ? hoje : null, frente: g.frente || 'liq', cmps, cmpsMax };
       const soma = a => a.reduce((s, x) => s + x, 0);
       sub.textContent = 'Líquido ' + horaTxt(soma(liq)) + (temPer ? ' · Perdido ' + horaTxt(soma(per)) : ' · sem coluna de perdido (use 3 colunas)') + (temPer && d.linhas.every(l => l[2] == null) ? ' · não entendi o formato do perdido' : '') + (ant ? ' · Anterior ' + horaTxt(soma(ant)) : '');
       series.forEach(s => {
@@ -202,6 +283,7 @@ Containers.registrar('graficos', ctx => {
         leg.append(b);
       });
       if (marcas && marcas.some(Boolean)) { const lg = h('span', 'gf-leg-imp'); lg.append(h('b'), document.createTextNode('Importante')); leg.append(lg); }
+      if (cmps) { const lg = h('span', 'gf-leg-imp gf-leg-cmp'); lg.append(h('b'), document.createTextNode('Compromissos')); leg.append(lg); }
       pintar();
     }
     const ro = new ResizeObserver(() => requestAnimationFrame(() => { if (plot.clientWidth !== larg) pintar(); }));   // no próximo quadro: evita o aviso "ResizeObserver loop"
@@ -285,7 +367,8 @@ Containers.registrar('graficos', ctx => {
   }
 
   raiz.querySelectorAll('.gf-atualizar').forEach(b => b.onclick = () => carregar(true));
-  setInterval(rodape, 30000);
+  let diaVisto = new Date().toDateString();
+  setInterval(() => { rodape(); const d = new Date().toDateString(); if (d !== diaVisto) { diaVisto = d; if (visivel()) renderizarTudo(); } }, 30000);   // virou o dia: as cores dos prazos mudam
 
   // avisos de fora (ver Util.avisar): o tema mudou / uma sessão foi gravada na planilha
   document.addEventListener('tema-mudou', () => { if (visivel()) renderizarTudo(); });
@@ -303,6 +386,9 @@ Containers.registrar('graficos', ctx => {
     { chave: 'anterior', rotulo: 'Período anterior (opcional)', tipo: 'intervalo', opcional: true, mostrarSe: nTipo, dica: 'Mesmo formato; aparece apagado atrás. Ex.: Q26:S33' },
     { chave: 'diaSemana', rotulo: 'Mostrar o dia da semana (Seg, Ter…) no eixo', tipo: 'caixa', mostrarSe: nTipo, dica: 'A primeira coluna precisa ser uma data.' },
     { chave: 'imp', rotulo: 'Marcar os dias com itens "Imp" da agenda', tipo: 'caixa', mostrarSe: nTipo },
+    { chave: 'compromissos', rotulo: 'Compromissos da agenda nos meses', tipo: 'selecao', recarrega: true, mostrarSe: v => v.tipo === 'barras', opcoes: [['auto', 'Automático (se as barras forem meses)'], ['sim', 'Ligado'], ['nao', 'Desligado']], dica: 'Bolinhas sobre a barra do mês, na cor do prazo da Agenda (só os pendentes). Passe o mouse ou toque no mês para ver os nomes.' },
+    { chave: 'compromissosMax', rotulo: 'Bolinhas por mês (no máximo)', tipo: 'numero', min: 1, max: 10, mostrarSe: v => v.tipo === 'barras' && v.compromissos !== 'nao', dica: 'O resto aparece como +N; a dica lista todos.' },
+    { chave: 'anoMeses', rotulo: 'Ano dos meses (se o rótulo só tiver o mês)', tipo: 'numero', min: 0, mostrarSe: v => v.tipo === 'barras' && v.compromissos !== 'nao', dica: 'Deixe 0 para usar o ano de hoje. Se o rótulo ou a data da célula já trazem o ano, ele vale.' },
     { chave: 'frente', rotulo: 'Linha na frente', tipo: 'selecao', mostrarSe: v => v.tipo === 'linhas', opcoes: [['liq', 'Tempo líquido'], ['per', 'Perdido']], dica: 'Qual linha fica por cima quando as duas se cruzam.' },
     { chave: 'passo', rotulo: 'Faixa do histograma', tipo: 'selecao', numero: true, mostrarSe: v => v.tipo === 'histograma', opcoes: [[60, '1 hora'], [30, '30 minutos']] },
     { chave: 'ativo', rotulo: 'Mostrar este gráfico', tipo: 'caixa' }
@@ -310,7 +396,7 @@ Containers.registrar('graficos', ctx => {
   function editar(g) {
     editandoId = g.id; marcarEditando();
     Painel.abrir({
-      id: 'g:' + g.id, titulo: g.titulo || 'Gráfico', subtitulo: 'Gráfico · as mudanças valem na hora', campos: CAMPOS_G, valores: () => Object.assign({ passo: 60, frente: 'liq' }, g),
+      id: 'g:' + g.id, titulo: g.titulo || 'Gráfico', subtitulo: 'Gráfico · as mudanças valem na hora', campos: CAMPOS_G, valores: () => Object.assign({ passo: 60, frente: 'liq', compromissos: 'auto', compromissosMax: 5, anoMeses: 0 }, g),
       aoMudar(chave, valor) {
         g[chave] = valor;
         if (chave === 'tipo' && valor === 'histograma') { g.aba = cfg.planilha.aba; g.intervalo = intervaloInicio(); g.passo = g.passo || 60; }
