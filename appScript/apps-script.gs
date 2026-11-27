@@ -14,7 +14,7 @@ const TOKEN = 'COLOQUE-AQUI-UM-TOKEN-LONGO-E-ALEATORIO';
 const ESCRITA_LIBERADA = true; // false = o script só consegue LER
 const ABAS_PERMITIDAS = [];    // [] = todas as abas; ou ['Banco', 'Config'] para limitar
 
-const VERSAO = 'v-generico-1';
+const VERSAO = 'v-generico-2';
 
 // ===================== Utilidades =====================
 
@@ -157,6 +157,39 @@ function limpar(p) {
   return { ok: true, aba: aba.getName(), intervalo: r.getA1Notation() };
 }
 
+// apagarLinha: { aba, linha, conferir: { A: 'texto exibido', C: '...' }, como?: 'excluir' | 'limpar' }
+//   Apaga UMA linha, mas só se as células de "conferir" mostrarem exatamente o texto esperado (é o site que diz o que a linha deve conter).
+//   Se qualquer uma for diferente, NADA é apagado e a resposta traz o motivo.
+//   como: 'excluir' (padrão) remove a linha e sobe as de baixo; 'limpar' só apaga o conteúdo das colunas de "conferir".
+function apagarLinha(p) {
+  const aba = abaPorNome(p.aba, true);
+  const linha = parseInt(p.linha, 10);
+  if (!(linha >= 1)) throw new Error('informe a linha (número)');
+  const conf = p.conferir && typeof p.conferir === 'object' ? p.conferir : {};
+  const letras = Object.keys(conf);
+  if (!letras.length) throw new Error('informe "conferir" (colunas e o texto esperado) para apagar com segurança');
+  const como = p.como === 'limpar' ? 'limpar' : 'excluir';
+  if (como === 'excluir' && linha <= aba.getFrozenRows()) throw new Error('a linha ' + linha + ' está nas linhas congeladas; nada foi apagado');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    if (linha > aba.getLastRow()) throw new Error('a linha ' + linha + ' está vazia; nada foi apagado');
+    const cols = letras.map(colunaNumero), c0 = Math.min.apply(null, cols), c1 = Math.max.apply(null, cols);
+    const atual = aba.getRange(linha, c0, 1, c1 - c0 + 1).getDisplayValues()[0];
+    letras.forEach((l, i) => {
+      const lido = atual[cols[i] - c0];
+      if (String(lido) !== String(conf[l])) throw new Error('a linha ' + linha + ' não é a esperada (coluna ' + l.toUpperCase() + ': "' + lido + '" em vez de "' + conf[l] + '"); nada foi apagado');
+    });
+    if (como === 'excluir') aba.deleteRow(linha); else aba.getRange(linha, c0, 1, c1 - c0 + 1).clearContent();
+    const props = PropertiesService.getScriptProperties(), pref = 'prox:' + aba.getSheetId() + ':';   // esquece o palpite da próxima linha livre
+    Object.keys(props.getProperties()).forEach(k => { if (k.indexOf(pref) === 0) props.deleteProperty(k); });
+    aviso('Linha ' + linha + (como === 'excluir' ? ' excluída' : ' limpa'), 'OK');
+    return { ok: true, aba: aba.getName(), linha, como };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // Acha a próxima linha livre olhando só a coluna-chave (com poucas chamadas)
 function proximaLinha(aba, col, inicial) {
   const props = PropertiesService.getScriptProperties();
@@ -231,7 +264,7 @@ function lote(p) {
 
 // ===================== Roteador =====================
 
-const ACOES = { info, abas, ler, escrever, limpar, anexar, lote };
+const ACOES = { info, abas, ler, escrever, limpar, anexar, apagarLinha, lote };
 const SO_LEITURA = ['info', 'abas', 'ler'];   // as únicas ações aceitas por GET
 
 function executar(p, dentroDeLote) {

@@ -17,12 +17,12 @@
     b.append(i); tr.append(a, b); tbody.append(tr);
   });
 
-  const ids = ['#sh-aba', '#sh-linha', '#sh-tipo', '#sh-formato', '#sh-abacfg', '#sh-intervalo'].concat(CAMPOS.map(c => '#sh-c-' + c[0]));
+  const ids = ['#sh-aba', '#sh-linha', '#sh-tipo', '#sh-formato', '#sh-abacfg', '#sh-intervalo', '#sh-apagar'].concat(CAMPOS.map(c => '#sh-c-' + c[0]));
 
   function mostrar() {
     const p = cfg.planilha;
     $('#sh-aba').value = p.aba; $('#sh-linha').value = p.linhaInicial; $('#sh-tipo').value = p.tipo;
-    $('#sh-formato').value = p.formatoTempo; $('#sh-abacfg').value = p.abaConfig; $('#sh-intervalo').value = p.intervalo;
+    $('#sh-formato').value = p.formatoTempo; $('#sh-abacfg').value = p.abaConfig; $('#sh-intervalo').value = p.intervalo; $('#sh-apagar').value = p.apagarTeste;
     CAMPOS.forEach(([k]) => { $('#sh-c-' + k).value = p.campos[k]; });
     resumo();
 }
@@ -49,6 +49,7 @@
     p.formatoTempo = $('#sh-formato').value;
     p.abaConfig = $('#sh-abacfg').value.trim() || p.abaConfig;
     p.intervalo = $('#sh-intervalo').value.trim().toUpperCase() || p.intervalo;
+    p.apagarTeste = $('#sh-apagar').value;
     CAMPOS.forEach(([k, nome]) => {
       const v = $('#sh-c-' + k).value.trim().toUpperCase();
       if (/^[A-Z]{0,3}$/.test(v)) p.campos[k] = v; else msg('Coluna inválida em “' + nome + '”: use só letras (A, B, … AA).', 'erro');
@@ -104,7 +105,8 @@
     ler: { aba: 'Banco', intervalo: 'A1:G5', retorno: ['exibidos'] },
     escrever: { aba: 'Teste', intervalo: 'A1', valores: [['olá', 1], ['hoje', { iso: new Date().toISOString(), como: 'data' }]] },
     anexar: { aba: 'Teste', linhaInicial: 1, colunas: { A: 'texto', B: 123 } },
-    limpar: { aba: 'Teste', intervalo: 'A1:B5' }
+    limpar: { aba: 'Teste', intervalo: 'A1:B5' },
+    apagarLinha: { aba: 'Teste', linha: 7, conferir: { A: 'texto exibido na célula A7' }, como: 'limpar' }
   };
   const mostrarExemplo = () => { $('#av-json').value = JSON.stringify(EXEMPLOS[$('#av-acao').value], null, 2); };
   $('#av-acao').onchange = mostrarExemplo;
@@ -113,7 +115,7 @@
     const acao = $('#av-acao').value, saida = $('#av-saida');
     let params;
     try { params = JSON.parse($('#av-json').value || '{}'); } catch (err) { saida.textContent = 'JSON inválido: ' + err.message; return; }
-    if (['escrever', 'anexar', 'limpar'].includes(acao) && !confirm('Executar "' + acao + '" na planilha de verdade?')) return;
+    if (['escrever', 'anexar', 'limpar', 'apagarLinha'].includes(acao) && !confirm('Executar "' + acao + '" na planilha de verdade?')) return;
     saida.textContent = 'Executando…';
     try {
       const d = await pedir(() => chamarScript(acao, params));

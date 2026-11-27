@@ -216,7 +216,7 @@
       <div><button type="button" class="pl-btn" id="btn-aparencia"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg> Aparência: temas, cores, fonte e tamanhos</button></div>
       <details class="sh" id="sh-det">
         <summary>Planilha: o que enviar e de onde ler</summary><div class="cx-corpo">
-        <p class="dica" style="margin-top:.6rem">Estas opções vão junto com cada envio: é o site que diz ao script (versão <b>v-generico-1</b> ou mais nova) onde gravar e o que ler.</p>
+        <p class="dica" style="margin-top:.6rem">Estas opções vão junto com cada envio: é o site que diz ao script (versão <b>v-generico-2</b> ou mais nova) onde gravar e o que ler.</p>
         <h3>Enviar cada sessão para</h3>
         <div class="sh-2">
           <div><label class="campo" for="sh-aba">Aba de destino</label><input type="text" id="sh-aba" list="sh-abas" autocomplete="off"></div>
@@ -231,6 +231,9 @@
           <div><label class="campo" for="sh-formato">Perdido e tempo líquido como</label>
             <select id="sh-formato"><option value="dia">Duração do Sheets (fração de dia)</option><option value="min">Minutos (número)</option></select></div>
         </div>
+        <div style="margin-top:.6rem"><label class="campo" for="sh-apagar">Depois de enviar uma sessão de teste</label>
+          <select id="sh-apagar"><option value="linha">Excluir a linha da planilha</option><option value="limpar">Só limpar as células enviadas</option><option value="nao">Não apagar</option></select>
+          <p class="dica">O site confere que a linha chegou e é a da sessão antes de apagar. Precisa do script v-generico-2 ou mais novo.</p></div>
         <p class="dica" id="sh-resumo"></p>
         <h3>Ler as categorias de</h3>
         <div class="sh-2">
@@ -271,7 +274,7 @@
         <p class="dica" style="margin-top:.6rem">O Apps Script é genérico (ler, escrever, anexar, limpar, abas, info, lote). Aqui você manda um pedido em JSON e vê a resposta. Ações que gravam pedem confirmação.</p>
         <div class="sh-2" style="margin-top:.6rem">
           <div><label class="campo" for="av-acao">Ação</label>
-            <select id="av-acao"><option>info</option><option>abas</option><option selected>ler</option><option>escrever</option><option>anexar</option><option>limpar</option></select></div>
+            <select id="av-acao"><option>info</option><option>abas</option><option selected>ler</option><option>escrever</option><option>anexar</option><option>limpar</option><option>apagarLinha</option></select></div>
           <div style="align-self:end"><button type="button" class="pl-btn pri" id="av-rodar" style="width:100%">Executar</button></div>
         </div>
         <label class="campo" for="av-json" style="margin-top:.6rem">Parâmetros (JSON)</label>
@@ -346,12 +349,12 @@
   </div>
 </dialog>
 
-<script src="js/core/sheets.js?v=2"></script>
+<script src="js/core/sheets.js?v=3"></script>
 <script src="js/core/util.js?v=2"></script>
 <script src="js/core/campos.js?v=2"></script>
 <script src="js/core/painel.js?v=5"></script>
-<script src="js/pomodoro.js?v=5"></script>
-<script src="js/planilha.js?v=1"></script>
+<script src="js/pomodoro.js?v=6"></script>
+<script src="js/planilha.js?v=2"></script>
 <script src="js/grade.js?v=2"></script>
 <script src="js/core/armazem.js?v=1"></script>
 <script src="js/core/containers.js?v=6"></script>

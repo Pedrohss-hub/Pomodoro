@@ -10,7 +10,7 @@
 
   let cfg = Object.assign({ url: '', token: '', foco: 25, curta: 5, longa: 15 }, LS.get('pomo-cfg', {}));
   Sheets.usar(() => cfg);   // o núcleo (js/core/sheets.js) lê a URL e o token daqui
-  const PLAN_PADRAO = { aba: 'Banco', linhaInicial: 2, tipo: 'Estudo', formatoTempo: 'dia', abaConfig: 'Config', intervalo: 'A23:A31',
+  const PLAN_PADRAO = { aba: 'Banco', linhaInicial: 2, tipo: 'Estudo', formatoTempo: 'dia', apagarTeste: 'linha', abaConfig: 'Config', intervalo: 'A23:A31',
     campos: { data: 'A', inicio: 'B', fim: 'C', perdido: 'D', categoria: 'E', tipo: 'F', liquido: 'G' } };
   cfg.planilha = Object.assign({}, PLAN_PADRAO, cfg.planilha, { campos: Object.assign({}, PLAN_PADRAO.campos, (cfg.planilha || {}).campos) });
 
@@ -32,6 +32,40 @@
     if (!Object.keys(colunas).length) throw new Error('nenhuma coluna configurada para envio');
     const chave = String(p.campos.data || '').trim().toUpperCase();
     return { acao: 'anexar', aba: p.aba, linhaInicial: p.linhaInicial, colunaChave: chave || undefined, colunas };
+  }
+
+  // Modo teste que se limpa: depois de enviar uma sessão de TESTE, lê a linha de volta (confirma que chegou e que é a desta sessão)
+  // e manda o script apagá-la. Só mexe na linha que ESTE envio acabou de criar (a que o script informou), só se o conteúdo bater e só
+  // se a sessão for de teste. Qualquer dúvida: não apaga nada e avisa. cfg.planilha.apagarTeste: 'linha' (exclui), 'limpar' ou 'nao'.
+  async function limparTeste(e, linha) {
+    const p = cfg.planilha, como = p.apagarTeste;
+    if (!e.teste || como === 'nao' || !(linha >= 1)) return false;
+    const falta = txt => { mostrar('aviso', 'Teste enviado, mas NÃO apaguei a linha ' + linha + ': ' + txt); return false; };
+    try {
+      const esperado = pedidoAnexar(e).colunas, letras = Object.keys(esperado), nums = letras.map(Util.colunaNumero);
+      const c0 = Math.min(...nums), c1 = Math.max(...nums);
+      const lido = await Sheets.ler(p.aba, Util.colunaLetra(c0) + linha + ':' + Util.colunaLetra(c1) + linha, { retorno: ['exibidos'], cortarVazias: false });
+      if (!lido.ok) return falta('não consegui conferir (' + (lido.erro || 'resposta inesperada') + ').');
+      const cel = (lido.exibidos || [])[0];
+      if (!cel) return falta('a linha lida veio vazia.');
+      const conferir = {};
+      for (const l of letras) {
+        const v = esperado[l], c = String(cel[Util.colunaNumero(l) - c0] ?? '').trim(); conferir[l] = String(cel[Util.colunaNumero(l) - c0] ?? '');
+        let bate = true;
+        if (typeof v === 'string') bate = c === v.trim();                                       // texto (categoria, tipo): igual
+        else if (v && v.como === 'hora') {                                                       // hora: mesmo minuto (aceita 1 min de diferença por arredondamento)
+          const m = /(\d{1,2}):(\d{2})/.exec(c), d = new Date(v.iso);
+          const dif = m ? Math.abs((+m[1] * 60 + +m[2]) - (d.getHours() * 60 + d.getMinutes())) : 9999;
+          bate = dif <= 1 || dif >= 1439;
+        } else if (v && v.como === 'data') bate = c !== '';                                      // data: preenchida
+        if (!bate) return falta('a linha não bate com a sessão (coluna ' + l + ': "' + c + '").');
+      }
+      const d = await Sheets.apagarLinha(p.aba, linha, { conferir, como: como === 'limpar' ? 'limpar' : 'excluir' });
+      if (!d.ok) return falta(/desconhecida/.test(d.erro || '') ? 'o script está numa versão antiga: cole o novo apps-script.gs (v-generico-2) e publique uma nova versão da implantação.' : (d.erro || 'o script recusou.'));
+      e.apagada = como === 'limpar' ? 'limpa' : 'excluída';
+      mostrar('ok', 'Teste enviado e apagado (linha ' + linha + ').');
+      return true;
+    } catch (err) { return falta('não consegui conferir (' + err.message + ').'); }
   }
 
   // Categorias = células lidas com a ação genérica "ler"
@@ -179,7 +213,7 @@
     log.forEach(e => {
       const li = document.createElement('li');
       const topo = document.createElement('div'); topo.className = 'topo';
-      const mat = document.createElement('span'); mat.className = 'mat'; mat.textContent = (e.categoria || 'Estudo') + (e.teste ? ' (teste)' : '');
+      const mat = document.createElement('span'); mat.className = 'mat'; mat.textContent = (e.categoria || 'Estudo') + (e.teste ? ' (teste)' : '') + (e.apagada ? ' · apagada' : '');
       const st = document.createElement('span'); st.className = 'st ' + e.status;
       st.textContent = e.status === 'ok' ? 'Enviada' : e.status === 'enviando' ? 'Enviando…' : e.status === 'pendente' ? 'Na fila' : 'Falhou';
       topo.append(mat, st);
@@ -247,8 +281,9 @@
       }
       if (!d.ok) throw new Error(d.erro || 'o script respondeu ok: false');
       if (!d.linha) throw new Error('o script respondeu, mas não confirmou a gravação (versão antiga da implantação?)');
-      mostrar('ok', 'Gravado na planilha, linha ' + d.linha, d);
-      e.status = 'ok'; e.enviadoEm = Date.now(); conexao = 'on';
+      mostrar('ok', 'Gravado na planilha, linha ' + d.linha, d, !!e.teste && cfg.planilha.apagarTeste !== 'nao');   // teste: quem avisa é a limpeza
+      e.status = 'ok'; e.enviadoEm = Date.now(); e.linha = d.linha; conexao = 'on';
+      if (e.teste) await limparTeste(e, d.linha);                          // antes de avisar 'sessao-enviada': os gráficos já leem sem a linha de teste
     } catch (err) {
       e.status = err.fila ? 'pendente' : 'erro';
       e.erro = err.message;
