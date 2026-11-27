@@ -154,6 +154,22 @@
   li .rot { font-size: .72rem; font-weight: 400; color: var(--soft); }
   li .msg { margin: .6rem 0 0; font-size: .85rem; color: var(--soft); }
   li button { margin-top: .7rem; font-size: calc(1em * var(--btn)); }
+  li .par { white-space: nowrap; }
+  /* Sessões: as colunas (Início, Fim, Líquido, Perdido) são compartilhadas por TODAS as linhas da lista (subgrid), então ficam alinhadas
+     qualquer que seja o texto (hora com ou sem segundos, "5 s", "1 min 30 s", "1 h 05 min"). Lista estreita: 2 colunas (Início/Fim e Líquido/Perdido).
+     Sem suporte a subgrid, vale o desenho antigo (acima). */
+  @supports (grid-template-columns: subgrid) {
+    .box:has(> #lista) { container-type: inline-size; }   /* o cartão das Sessões é o "container" da consulta abaixo */
+    #lista { display: grid; grid-template-columns: repeat(3, max-content) 1fr; column-gap: 2.2rem; align-content: start; }
+    #lista > li { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
+    #lista > li.vazio { display: block; }
+    #lista > li > .topo, #lista > li > .msg { grid-column: 1 / -1; }
+    #lista > li > button { grid-column: 1 / -1; grid-row: auto; align-self: start; justify-self: start; }
+    #lista > li > .det { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; row-gap: .5rem; }
+    @container (max-width: 24.5rem) {
+      #lista { grid-template-columns: max-content 1fr; }
+    }
+  }
 
   .cat .dd { position: relative; flex: 1; min-width: 0; }
   .dd-btn {
