@@ -72,7 +72,7 @@ EDF0298|Práticas Escolares, Diversidade, Subjetividade|4|1|PSI
 EDM0685|Experimentação e Modelagem|1|2|EST`;
 
   // Obrigatórias na ordem da grade ideal: [período, concluídas, ainda não feitas]
-  // (o progresso de cada pessoa fica só no navegador; para trazer o seu, use Dados e backup > Importar)
+  // (o progresso de cada pessoa fica só no navegador; para trazer o seu, use Configurações > Dados e backup > Importar)
   const OBR = [
     [1, '', 'MAT0105 MAT0153 MAT1351 MAT0102'],
     [2, '', '4300156 MAT0154 MAT0134 MAT1352'],
@@ -631,9 +631,9 @@ EDM0685|Experimentação e Modelagem|1|2|EST`;
   });
   $('#pl-resetar').onclick = () => {
     const s = padraoSalvo();
-    if (!confirm('Voltar ao ' + (s ? 'padrão que você salvou' : 'padrão original') + '? A grade atual será substituída (dá para desfazer em "Dados e backup").')) return;
+    if (!confirm('Voltar ao ' + (s ? 'padrão que você salvou' : 'padrão original') + '? A grade atual será substituída (dá para desfazer em Configurações > Dados e backup).')) return;
     guardarParaDesfazer(); G = s ? estadoDe(s) : estadoFabrica(); salvar(); desenhar(); infoPadrao();
-    avisar('Grade restaurada. Para voltar atrás: Dados e backup → Desfazer.');
+    avisar('Grade restaurada. Para voltar atrás: Configurações → Dados e backup → Desfazer.');
   };
   $('#pl-fabrica').onclick = () => {
     if (!confirm('Apagar o padrão salvo e voltar às disciplinas originais (sem os seus créditos)? Dá para desfazer.')) return;

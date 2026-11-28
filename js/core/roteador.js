@@ -4,6 +4,7 @@
    - fixa: o id de uma página que já existe escrita no index.html (um "módulo fixo", como o Pomodoro e a Grade).
            Sem "fixa", a página é criada aqui, vazia, só com os containers dela.
    - ligado: false   a página some do menu e da tela, sem apagar nada.
+   - configuracoes: [ { id, titulo, alvo | montar } ]   seções próprias da página dentro das Configurações (#btn-config); só aparecem com a página aberta (ver js/core/configuracoes.js).
    - larga: true     a página usa a largura grande (a Grade usa).
    - destino         (opcional) onde os containers entram dentro da página; o padrão é ".painel-estudo".
    - layouts: [ { id, tipo, espaco, largura } ]   as ÁREAS da página, de cima para baixo. Cada container pertence a uma (campo "layout" dele).
@@ -89,6 +90,7 @@ const Roteador = (() => {
     document.querySelectorAll('[data-cantos] [data-pg]').forEach(b => { b.hidden = b.dataset.pg !== atualId; });   // botões de canto: só o da página aberta
     document.querySelectorAll('.abas button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pg === atualId)));
     Containers.paginaMudou();                 // avisa os containers: quem ficou visível se atualiza
+    Util.avisar('pagina-mudou');              // avisa o resto do site (ex.: as seções das Configurações que valem só para uma página)
   }
 
   const limitar = (v, min, max, padrao) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : padrao; };
@@ -312,6 +314,12 @@ const Roteador = (() => {
       provedores.forEach(fn => { try { const a = fn(info); if (a) acoes.push(a); } catch (err) { console.error('botão de página falhou (' + p.id + '):', err); } });
       colocarAcoes(els[p.id], acoes, p.id);
     });
+
+    // seções que a página registra nas Configurações (campo "configuracoes" da página; ver js/core/configuracoes.js)
+    ligadas.forEach(p => (p.configuracoes || []).forEach(s => {
+      try { Configuracoes.secao(Object.assign({}, s, { pagina: p.id, paginaTitulo: p.titulo || p.id })); }
+      catch (err) { console.error('seção de Configurações falhou (' + p.id + '/' + (s && s.id) + '):', err); }
+    }));
 
     window.addEventListener('hashchange', mostrar);
   }

@@ -16,8 +16,10 @@ const PAGINAS = [
   { id: 'grade', titulo: 'Grade', fixa: 'pg-grade', larga: true,
     layouts: [ { id: 'principal', tipo: 'coluna', largura: 'normal' } ],
     containers: [
-      { id: 'grade-fixo', tipo: 'fixo', layout: 'principal', ordem: 1, titulo: 'Planejador de grade', alvo: '#pg-grade', envolver: true, exceto: '.pl-dados' },   // o planejador fica sozinho; Dados e backup é o container abaixo
-      { id: 'grade-dados', tipo: 'fixo', layout: 'principal', ordem: 2, titulo: 'Dados e backup', alvo: '#pg-grade .pl-dados', caixa: true }   // sai desta página na Etapa 7 (vai para as Configurações)
+      { id: 'grade-fixo', tipo: 'fixo', layout: 'principal', ordem: 1, titulo: 'Planejador de grade', alvo: '#pg-grade', envolver: true, exceto: '.pl-dados' }   // o planejador fica sozinho no layout
+    ],
+    configuracoes: [   // seções da página dentro das Configurações (só aparecem com a Grade aberta)
+      { id: 'dados', titulo: 'Dados e backup', alvo: '#pg-grade .pl-dados' }
     ] }
 ];
 /* Páginas: "fixa" aponta para uma página escrita no index.html (módulo fixo: Pomodoro, Grade). Sem "fixa", a página é criada
@@ -36,6 +38,7 @@ const PAGINAS = [
      layout  o id da área onde ele fica; se faltar, a primeira
      ordem   a posição dele DENTRO da área (1, 2, 3...); se faltar, vale a posição na lista
      ocupa   quantas colunas ele ocupa (1, 2 ou 3, até o limite do tipo da área); se faltar, vale 1
+   Na página, "configuracoes": [ { id, titulo, alvo | montar } ] cria seções só dela dentro das Configurações (ver js/core/configuracoes.js).
    Container de tipo 'fixo' leva um bloco que já está no index.html para dentro de uma área (ver js/containers/fixo.js).
    No celular e em telas estreitas cada área vira uma coluna só, seguindo a ordem.
    GRADE LIVRE (opcional): num layout, "colunas" e "linhas" (listas de tamanhos) no lugar de tipo/pilha/coluna1; e, no container, col, lin, ocupa e ocupaLin.

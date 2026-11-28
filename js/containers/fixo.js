@@ -9,8 +9,8 @@
                 use quando o alvo é a página inteira (a Grade). O alvo continua no lugar, só os filhos mudam de caixa.
        exceto   (opcional, com envolver) seletor CSS (ou lista de seletores) dos filhos que NÃO entram na caixa e ficam para outro container 'fixo'.
        caixa    (opcional) true = o bloco vira uma caixa nova que leva o alvo para dentro. Use quando o alvo esconde os filhos dele (como um <details> fechado):
-                as alças do editor de layout são filhos do bloco e sumiriam. Ex.: Dados e backup (alvo '#pg-grade .pl-dados', caixa: true).
-                Ex. de exceto: o planejador da Grade fica sozinho (exceto: '.pl-dados') e a seção Dados e backup é outro container 'fixo' (alvo '#pg-grade .pl-dados').
+                as alças do editor de layout são filhos do bloco e sumiriam. Ex.: alvo '#pg-x .detalhes', caixa: true.
+                Ex. de exceto: o planejador da Grade fica sozinho (exceto: '.pl-dados'); o .pl-dados vai para as Configurações (ver js/core/configuracoes.js).
    Não tem painel de configuração: o que dá para ajustar é só o lugar dele (layout, ordem, ocupa).
    Carregue antes de paginas.js. */
 Containers.registrar('fixo', ctx => {
