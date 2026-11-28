@@ -60,7 +60,7 @@
   ids.forEach(s => $(s).addEventListener('change', guardar));
 
   async function pedir(fn) {
-    if (!cfg.url || !cfg.token) throw new Error('preencha a URL e o token acima');
+    if (!cfg.url || !cfg.token) throw new Error('preencha a URL e o token em Configurações (engrenagem do topo)');
     if (!navigator.onLine) throw new Error('sem internet');
     try { return await fn(); }
     catch (err) {

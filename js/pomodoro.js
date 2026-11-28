@@ -527,6 +527,13 @@
     verificarEEnviar();
   };
   ['#url', '#token', '#d-foco', '#d-curta', '#d-longa'].forEach(s => $(s).onchange = salvarCfg);
+  // as durações moram no ⚙ do Timer (painel, sem botão "Fechar"): gravam a cada digitação, sem reenviar nada
+  const salvarDuracoes = () => {
+    ['foco', 'curta', 'longa'].forEach(k => { const n = parseInt($('#d-' + k).value); if (n >= 1) cfg[k] = n; });
+    LS.set('pomo-cfg', cfg);
+    if (!rodando && !inicioSessao) { restante = duracao(); render(); }
+  };
+  ['#d-foco', '#d-curta', '#d-longa'].forEach(s => $(s).oninput = salvarDuracoes);
   $('#btn-historico').onclick = () => {
     const d = $('#dlg-console');
     if (d.open) { d.close(); return; }

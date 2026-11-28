@@ -8,7 +8,8 @@ const PAGINAS = [
       { id: 'principal', tipo: 'lateral', espaco: 1, largura: 'ampla', pilha: 2, coluna1: 26 }   // coluna estreita (calendário em cima da Agenda) + Gráficos ao lado
     ],
     containers: [
-      { id: 'pomodoro-fixo', tipo: 'fixo', layout: 'topo', ordem: 1, titulo: 'Timer e Sessões', alvo: '#pg-pomo > .grade' },
+      { id: 'pomodoro-fixo', tipo: 'fixo', layout: 'topo', ordem: 1, titulo: 'Timer e Sessões', alvo: '#pg-pomo > .grade',
+        painel: { botaoEm: '.timer .cat', secoes: [ { alvo: '#dlg-config .tres' }, { alvo: '#selo-teste' }, { alvo: '#sh-det' } ] } },   // ⚙ ao lado das categorias: durações, modo teste e Planilha
       { id: 'calendario', tipo: 'calendario', layout: 'principal', ordem: 1, titulo: 'Calendário' },   // usa os itens da Agenda (não lê a planilha)
       { id: 'agenda', tipo: 'agenda', layout: 'principal', ordem: 2, titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false, altura: 18 },
       { id: 'graficos', tipo: 'graficos', layout: 'principal', ordem: 3, titulo: 'Gráficos de estudo', graficos: null }   // null = lista padrão (editável no ⚙ do quadro)
@@ -16,10 +17,8 @@ const PAGINAS = [
   { id: 'grade', titulo: 'Grade', fixa: 'pg-grade', larga: true,
     layouts: [ { id: 'principal', tipo: 'coluna', largura: 'normal' } ],
     containers: [
-      { id: 'grade-fixo', tipo: 'fixo', layout: 'principal', ordem: 1, titulo: 'Planejador de grade', alvo: '#pg-grade', envolver: true, exceto: '.pl-dados' }   // o planejador fica sozinho no layout
-    ],
-    configuracoes: [   // seções da página dentro das Configurações (só aparecem com a Grade aberta)
-      { id: 'dados', titulo: 'Dados e backup', alvo: '#pg-grade .pl-dados' }
+      { id: 'grade-fixo', tipo: 'fixo', layout: 'principal', ordem: 1, titulo: 'Planejador de grade', alvo: '#pg-grade', envolver: true, exceto: '.pl-dados',
+        painel: { botaoEm: '.pl-ctrl', secoes: [ { alvo: '#pg-grade .pl-dados' } ] } }   // ⚙ do planejador: Dados e backup
     ] }
 ];
 /* Páginas: "fixa" aponta para uma página escrita no index.html (módulo fixo: Pomodoro, Grade). Sem "fixa", a página é criada

@@ -41,7 +41,7 @@
 <script src="js/tema.js?v=2"></script>
 <link rel="stylesheet" href="css/base.css?v=4">
 <link rel="stylesheet" href="css/grade.css?v=3">
-<link rel="stylesheet" href="css/planilha.css?v=10">
+<link rel="stylesheet" href="css/planilha.css?v=12">
 <link rel="stylesheet" href="css/graficos.css?v=6">
 <link rel="stylesheet" href="css/layout.css?v=12">
 <link rel="stylesheet" href="css/agenda.css?v=8">
@@ -241,7 +241,6 @@
           <div><label class="campo" for="sh-abacfg">Aba</label><input type="text" id="sh-abacfg" list="sh-abas" autocomplete="off"></div>
           <div><label class="campo" for="sh-intervalo">Células (ex.: A23:A31)</label><input type="text" id="sh-intervalo" autocomplete="off"></div>
         </div>
-        <datalist id="sh-abas"></datalist>
         <div class="sh-btns">
           <button type="button" id="sh-buscar-abas">Buscar abas da planilha</button>
           <button type="button" id="sh-testar">Testar leitura das categorias</button>
@@ -282,6 +281,7 @@
         <textarea id="av-json" rows="6" spellcheck="false" style="width:100%;font-family:ui-monospace,monospace;font-size:.8rem;padding:.6rem;border:1.5px solid var(--line);border-radius:.6rem;background:var(--card);color:inherit"></textarea>
         <pre id="av-saida" style="margin:.6rem 0 0;max-height:14rem;overflow:auto;font-size:.75rem;background:var(--card);border:1px solid var(--line);border-radius:.6rem;padding:.6rem;white-space:pre-wrap"></pre>
       </div></details>
+      <datalist id="sh-abas"></datalist>
     </div>
   </div>
 </dialog>
@@ -354,8 +354,8 @@
 <script src="js/core/util.js?v=2"></script>
 <script src="js/core/campos.js?v=2"></script>
 <script src="js/core/painel.js?v=6"></script>
-<script src="js/pomodoro.js?v=7"></script>
-<script src="js/planilha.js?v=2"></script>
+<script src="js/pomodoro.js?v=8"></script>
+<script src="js/planilha.js?v=3"></script>
 <script src="js/grade.js?v=3"></script>
 <script src="js/core/armazem.js?v=1"></script>
 <script src="js/core/containers.js?v=6"></script>
@@ -365,11 +365,11 @@
 <script src="js/core/painel-layout.js?v=9"></script>
 <script src="js/core/editor-grade.js?v=5"></script>
 <script src="js/core/editor-layout.js?v=15"></script>
-<script src="js/containers/fixo.js?v=3"></script>
+<script src="js/containers/fixo.js?v=4"></script>
 <script src="js/containers/agenda.js?v=8"></script>
 <script src="js/containers/calendario.js?v=2"></script>
 <script src="js/containers/graficos.js?v=10"></script>
-<script src="js/paginas.js?v=13"></script>
+<script src="js/paginas.js?v=14"></script>
 <script src="js/sincronia.js?v=1"></script>
 <script src="js/aparencia.js?v=2"></script>
 <script>

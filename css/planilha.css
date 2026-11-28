@@ -26,6 +26,9 @@
   .painel { position: fixed; z-index: 40; top: 1rem; right: 1rem; bottom: 1rem; width: 22.5rem; display: flex; flex-direction: column; background: var(--card); border: 1.5px solid var(--line); border-radius: calc(1rem * var(--raio)); box-shadow: 0 18px 50px rgba(35, 32, 58, .22); }
   .painel[hidden] { display: none; }
   .cfg-secao[hidden] { display: none; }
+  .cfg-corpo { display: grid; gap: .9rem; }
+  .cfg-corpo > details { margin-top: 0; }
+  .cfg-corpo .sh-tab td:first-child small { display: block; font-weight: 400; color: var(--soft); }
   .cfg-pag { font-weight: 400; color: var(--soft); }
   /* só o painel de LAYOUTS (classe pn-translucido, pedida por ele em Painel.abrir({ classe })): sem o mouse em cima (nem foco dentro) fica um pouco
      transparente; os demais painéis são sempre opacos. No toque (sem hover) fica sempre normal */
