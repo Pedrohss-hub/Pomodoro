@@ -84,6 +84,8 @@
   log.forEach(e => { if (e.status === 'enviando') e.status = 'pendente'; });
   let conexao = (cfg.url && cfg.token) ? 'ver' : 'config', fila = Promise.resolve();
   let categorias = LS.get('pomo-cats', ['Estudo']), categoriaSessao = 'Estudo', categoriasCarregadas = false, ultimaCarga = 0;
+  // lista do seletor: a da planilha + as categorias criadas na tela (js/core/categorias.js). Sem nenhuma criada, é só a da planilha, como sempre.
+  const nomesCat = () => (typeof Categorias !== 'undefined' ? Categorias.nomes(categorias) : categorias);
   let modo = 'foco', restante = 0, rodando = false, fimPrevisto = 0;
   let inicioSessao = null, ciclo = 0, timer = null, extra = false;
   let livreMs = 0, trecho = 0;                                     // modo Livre: tempo já contado (pausado) e quando o trecho atual começou
@@ -309,10 +311,11 @@
   function pingar() { return Sheets.ping(); }
 
   function renderCategorias() {
-    const sel = $('#categoria');
-    const atual = sel.value || LS.get('pomo-cat', '');
-    sel.replaceChildren(...categorias.map(c => new Option(c, c)));
-    sel.value = categorias.includes(atual) ? atual : categorias[0];
+    const sel = $('#categoria'), lista = nomesCat();
+    let atual = sel.value || LS.get('pomo-cat', '');
+    if (typeof Categorias !== 'undefined') atual = Categorias.canonico(atual);       // categoria renomeada: vale o nome de hoje
+    sel.replaceChildren(...lista.map(c => new Option(c, c)));
+    sel.value = lista.includes(atual) ? atual : lista[0];
     sel.disabled = !!inicioSessao;
     $('#cat-btn').disabled = sel.disabled;
     montarMenuCategorias();
@@ -320,14 +323,24 @@
 
   let itemAtivo = 0;
 
+  // nome com a bolinha da cor (só quando a categoria tem cor; sem cor fica só o texto, como sempre)
+  function rotuloCategoria(c) {
+    const ponto = typeof Categorias !== 'undefined' ? Categorias.ponto(c) : null;
+    if (!ponto) return null;
+    const r = document.createElement('span'), t = document.createElement('span');
+    r.className = 'cat-rot'; t.className = 'cat-t'; t.textContent = c; r.append(ponto, t); return r;
+  }
+
   function montarMenuCategorias() {
-    const sel = $('#categoria'), ul = $('#cat-lista');
-    $('#cat-txt').textContent = sel.value || 'Sem categorias';
-    ul.replaceChildren(...categorias.map((c, i) => {
+    const sel = $('#categoria'), ul = $('#cat-lista'), lista = nomesCat();
+    const rot = rotuloCategoria(sel.value);
+    if (rot) $('#cat-txt').replaceChildren(rot); else $('#cat-txt').textContent = sel.value || 'Sem categorias';
+    ul.replaceChildren(...lista.map((c, i) => {
       const li = document.createElement('li');
       li.setAttribute('role', 'option');
       li.setAttribute('aria-selected', String(c === sel.value));
-      li.textContent = c;
+      const r = rotuloCategoria(c);
+      if (r) li.append(r); else li.textContent = c;
       li.onclick = () => escolherCategoria(c);
       li.onmouseenter = () => destacarCategoria(i, false);
       return li;
@@ -564,6 +577,7 @@
     mostrar('info', cfg.teste ? 'Modo teste ligado: sessões a partir de 1 segundo são enviadas.' : 'Modo teste desligado: mínimo de 1 minuto.');
   };
   $('#categoria').onchange = e => LS.set('pomo-cat', e.target.value);
+  document.addEventListener('categorias-mudou', renderCategorias);      // criou, renomeou ou pintou uma categoria (ou chegou de outro aparelho)
   $('#cat-btn').onclick = () => ($('#cat-lista').hidden ? abrirMenuCategorias() : fecharMenuCategorias());
   $('#cat-btn').onkeydown = ev => {
     const aberto = !$('#cat-lista').hidden;
@@ -572,7 +586,7 @@
       if (!aberto) abrirMenuCategorias(); else destacarCategoria(itemAtivo + (ev.key === 'ArrowDown' ? 1 : -1));
     } else if (ev.key === 'Enter' && aberto) {
       ev.preventDefault();
-      escolherCategoria(categorias[itemAtivo]);
+      escolherCategoria(nomesCat()[itemAtivo]);
     } else if (ev.key === 'Escape' && aberto) {
       fecharMenuCategorias();
     }

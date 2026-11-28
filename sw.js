@@ -1,6 +1,6 @@
 /* Service worker do Painel de Estudos
    Para forçar a atualização do app em todos os aparelhos, mude o número da VERSAO. */
-const VERSAO = 'v38';
+const VERSAO = 'v39';
 const CACHE = 'painel-estudos-' + VERSAO;
 
 const ARQUIVOS = [
@@ -17,26 +17,28 @@ const ARQUIVOS = [
   './css/agenda.css?v=8',
   './css/calendario.css?v=2',
   './css/aparencia.css?v=4',
+  './css/categorias.css?v=1',
   './js/tema.js?v=2',
   './js/core/sheets.js?v=3',
   './js/core/util.js?v=2',
   './js/core/campos.js?v=2',
   './js/core/painel.js?v=6',
-  './js/pomodoro.js?v=8',
+  './js/pomodoro.js?v=9',
   './js/planilha.js?v=3',
   './js/grade.js?v=3',
-  './js/containers/graficos.js?v=10',
+  './js/containers/graficos.js?v=11',
   './js/core/armazem.js?v=1',
   './js/core/containers.js?v=6',
   './js/core/configuracoes.js?v=1',
+  './js/core/categorias.js?v=1',
   './js/core/roteador.js?v=13',
   './js/core/controles.js?v=1',
   './js/core/painel-layout.js?v=9',
   './js/core/editor-grade.js?v=5',
   './js/core/editor-layout.js?v=15',
   './js/containers/fixo.js?v=4',
-  './js/containers/agenda.js?v=8',
-  './js/containers/calendario.js?v=2',
+  './js/containers/agenda.js?v=9',
+  './js/containers/calendario.js?v=3',
   './js/paginas.js?v=14',
   './js/sincronia.js?v=1',
   './js/aparencia.js?v=2'

@@ -1,0 +1,31 @@
+/* Categorias com cor (js/core/categorias.js): a bolinha de cor, o editor no painel e as cores na Agenda e no calendário.
+   Sem cor definida nada aqui se aplica: o site fica como era. */
+  .cat-ponto { display: inline-block; flex: none; width: .7rem; height: .7rem; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(128, 128, 128, .45); }
+  .cat-rot { display: inline-flex; align-items: center; gap: .45rem; max-width: 100%; min-width: 0; vertical-align: bottom; }
+  .cat-rot > .cat-t { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+  /* editor */
+  .cat-ed { display: grid; gap: .6rem; }
+  .cat-lista { display: grid; gap: .4rem; }
+  .cat-linha { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .5rem; }
+  .cat-linha input[type="text"] { min-width: 0; width: 100%; padding: .45rem .6rem; border: 1.5px solid var(--line); border-radius: calc(.5rem * var(--raio)); background: var(--card); font: inherit; color: inherit; }
+  .cat-bola { width: 1.7rem; height: 1.7rem; padding: 0; border: 1.5px solid var(--line); border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 2px var(--card); }
+  .cat-bola.sem-cor { background: transparent; border-style: dashed; box-shadow: none; }
+  .cat-bola:focus-visible, .cat-amostra:focus-visible, .cat-x:focus-visible { outline: 3px solid var(--cor); outline-offset: 2px; }
+  .cat-x { padding: .3rem .5rem; border: 1.5px solid var(--line); border-radius: calc(.5rem * var(--raio)); background: transparent; cursor: pointer; color: var(--soft); }
+  .cat-x:hover { border-color: var(--erro); color: var(--erro); }
+  .cat-paleta { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; padding: .4rem .5rem; border: 1.5px solid var(--line); border-radius: calc(.6rem * var(--raio)); }
+  .cat-amostra { width: 1.5rem; height: 1.5rem; padding: 0; border: 2px solid transparent; border-radius: 50%; cursor: pointer; }
+  .cat-amostra.atual { border-color: var(--ink); }
+  .cat-livre { width: 2rem; height: 1.7rem; padding: 0; border: 1.5px solid var(--line); border-radius: .4rem; background: transparent; cursor: pointer; }
+  .cat-nova { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+  .cat-nova input { min-width: 0; padding: .5rem .6rem; border: 1.5px solid var(--line); border-radius: calc(.5rem * var(--raio)); background: var(--card); font: inherit; color: inherit; }
+  .cat-usada .cat-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cat-usada small { color: var(--soft); font-size: .7rem; white-space: nowrap; }
+  .cat-usadas { display: grid; gap: .4rem; }
+  .cat-usada { grid-template-columns: auto minmax(0, 1fr) auto; }
+
+  /* cores nas listas (só quando a opção "Cor das categorias" está ligada) */
+  .ag-tag.cat-cor { border-color: var(--cat); background: color-mix(in srgb, var(--cat) 20%, transparent); }
+  .cal-item.cat-cor:not(.imp) { border-left-color: var(--cat); background: color-mix(in srgb, var(--cat) 14%, var(--card)); }
+  .cal-ponto.cat-cor:not(.imp) { background: var(--cat); }

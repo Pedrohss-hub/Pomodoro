@@ -12,9 +12,10 @@
      concluidas  true = mostra também os concluídos, riscados (padrão); false = esconde
      inicio      0 = a semana começa no domingo (padrão); 1 = na segunda
      destaque    categoria em destaque ("" = nenhuma); maximo = quantos itens cabem por dia antes do "+N" (padrão 3)
+     corCategoria  true = cada item leva a cor da sua categoria (Categorias e cores); o destaque dourado continua mandando; desligado = como sempre
    Carregue depois de containers.js; estilos em css/calendario.css. Não grava nada. */
 Containers.registrar('calendario', ctx => {
-  const PADRAO = { titulo: 'Calendário', concluidas: true, inicio: 0, destaque: 'Imp', maximo: 3 };
+  const PADRAO = { titulo: 'Calendário', concluidas: true, inicio: 0, destaque: 'Imp', maximo: 3, corCategoria: false };
   const c = () => Object.assign({}, PADRAO, ctx.def());              // configuração de agora (padrão + o que você mudou)
   const h = Util.h;
   const MESES = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
@@ -69,6 +70,8 @@ Containers.registrar('calendario', ctx => {
     if (!x.hora) return false;
     const n = new Date(); return x.hora < String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
   };
+  // cor da categoria (só com a opção ligada): vai numa variável CSS (--cat) que css/categorias.css usa
+  const corar = (el, x) => { const k = c().corCategoria ? Categorias.cor(x.cat) : ''; if (k) { el.classList.add('cat-cor'); el.style.setProperty('--cat', k); } return el; };
   const classeItem = x => (x.feita ? ' feita' : '') + (ehDestaque(x) ? ' imp' : '') + (passou(x) ? ' passado' : '');
 
   /* ---------- desenhar o mês ---------- */
@@ -89,12 +92,12 @@ Containers.registrar('calendario', ctx => {
       b.append(h('span', 'cal-num', String(d.getDate())));
       const lista = h('span', 'cal-itens'), pontos = h('span', 'cal-pontos');
       itens.slice(0, max).forEach(x => {
-        const it = h('span', 'cal-item' + classeItem(x));
+        const it = corar(h('span', 'cal-item' + classeItem(x)), x);
         if (x.hora) it.append(h('small', null, x.hora));
         it.append(document.createTextNode(x.desc)); lista.append(it);
       });
       if (itens.length > max) lista.append(h('span', 'cal-mais', '+' + (itens.length - max)));
-      itens.slice(0, 6).forEach(x => pontos.append(h('i', 'cal-ponto' + classeItem(x))));
+      itens.slice(0, 6).forEach(x => pontos.append(corar(h('i', 'cal-ponto' + classeItem(x)), x)));
       if (itens.length > 6) pontos.append(h('small', null, '+'));
       b.append(lista, pontos); cels.push(b);
     }
@@ -136,7 +139,7 @@ Containers.registrar('calendario', ctx => {
       const li = h('div', 'cal-d-item' + classeItem(x));
       const corpo = h('div'), meta = h('div', 'cal-d-meta');
       meta.append(h('span', null, x.hora || 'Dia todo'));
-      if (x.cat) meta.append(h('span', 'ag-tag', x.cat));
+      if (x.cat) meta.append(corar(h('span', 'ag-tag', x.cat), x));
       if (x.feita) meta.append(h('span', null, '✓ concluído'));
       corpo.append(h('div', 'cal-d-desc', x.desc), meta); li.append(corpo); return li;
     }) : [h('p', 'ag-msg', 'Nada marcado neste dia.')]));
@@ -160,14 +163,17 @@ Containers.registrar('calendario', ctx => {
     { chave: 'inicio', rotulo: 'A semana começa na', tipo: 'selecao', numero: true, opcoes: [[0, 'Domingo'], [1, 'Segunda']] },
     { chave: 'concluidas', rotulo: 'Mostrar também os itens concluídos (riscados)', tipo: 'caixa' },
     { chave: 'destaque', rotulo: 'Categoria em destaque', tipo: 'texto', dica: 'Os itens dessa categoria ficam dourados (como nos gráficos). Deixe vazio para não destacar.' },
-    { chave: 'maximo', rotulo: 'Itens por dia antes do "+N"', tipo: 'numero', min: 1, max: 8 }
+    { chave: 'maximo', rotulo: 'Itens por dia antes do "+N"', tipo: 'numero', min: 1, max: 8 },
+    { chave: 'corCategoria', rotulo: 'Cor das categorias nos itens', tipo: 'caixa', dica: 'Cada item leva a cor da categoria dele (o destaque dourado continua valendo).' },
+    { tipo: 'botao', rotulo: 'Categorias e cores…', acao: () => Categorias.abrirEditor() }
   ];
   q('.cal-engrenagem').onclick = () => Painel.abrir({
     id: 'cfg:' + ctx.id, titulo: c().titulo, subtitulo: 'Calendário · as mudanças valem na hora', alvo: raiz, campos: CAMPOS, valores: c,
     aoMudar(chaveCampo, valor) { ctx.ajustar({ [chaveCampo]: valor }); render(); Painel.titulo(c().titulo); }
   });
 
-  document.addEventListener('agenda-atualizada', render);             // a agenda chegou ou mudou (inclusive concluir/desmarcar)
+  document.addEventListener('agenda-atualizada', render);
+  document.addEventListener('categorias-mudou', render);             // criou, renomeou ou pintou uma categoria             // a agenda chegou ou mudou (inclusive concluir/desmarcar)
   // a cada minuto: virou o dia (muda a marca de hoje) ou algum item passou da hora (fica apagado); só redesenha se algo mudou, para não sumir com a dica
   const assinatura = () => [...porDia().values()].flat().map(x => (passou(x) ? 1 : 0)).join('');
   let ass = '';

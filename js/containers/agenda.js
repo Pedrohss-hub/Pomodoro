@@ -5,9 +5,10 @@
    depois de gravar. Se o script recusar, a mudança é desfeita e você é avisado.
    Oferece aos outros containers: 'agenda-itens' (a lista) e 'agenda-config' ({ vermelho, amarelo }, para colorir pelo prazo igual à lista).
    Configuração (em js/paginas.js): { aba, intervalo, vermelho, amarelo, concluidas, titulo, altura }.
-     altura = altura máxima da lista, em rem (1 rem ≈ 16 px); passou disso, a lista rola (padrão 32). */
+     altura = altura máxima da lista, em rem (1 rem ≈ 16 px); passou disso, a lista rola (padrão 32).
+     corCategoria = true pinta a etiqueta da categoria com a cor dela (Categorias e cores, js/core/categorias.js); desligado = como sempre. */
 Containers.registrar('agenda', ctx => {
-  const PADRAO = { titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false, altura: 32 };
+  const PADRAO = { titulo: 'Agenda', aba: 'Agenda', intervalo: 'A3:G', vermelho: 7, amarelo: 30, concluidas: false, altura: 32, corCategoria: false };
   const a = () => Object.assign({}, PADRAO, ctx.def());              // configuração de agora (padrão + o que você mudou)
   const CACHE = 'ct-cache-' + ctx.id, TTL = 10 * 60 * 1000, REGEX = Util.REGEX_INTERVALO;
   const salvo = LS.get(CACHE, null) || {};
@@ -37,6 +38,13 @@ Containers.registrar('agenda', ctx => {
   ctx.publicar('agenda-config', () => [{ vermelho: a().vermelho, amarelo: a().amarelo }]);   // os gráficos usam as mesmas faixas de prazo
   const avisarMudou = () => Util.avisar('agenda-atualizada');
   const lista = q('.ag-lista');
+  Categorias.fornecer('agenda:' + ctx.id, () => est.itens.map(x => x.cat));      // o editor de categorias mostra os nomes que a agenda já usa
+  // etiqueta da categoria; com a opção "Cor das categorias" ligada, leva a cor dela (se tiver)
+  const etiqueta = cat => {
+    const t = h('span', 'ag-tag', cat), k = a().corCategoria ? Categorias.cor(cat) : '';
+    if (k) { t.classList.add('cat-cor'); t.style.setProperty('--cat', k); }
+    return t;
+  };
 
   raiz.append(h('datalist')); raiz.lastChild.id = 'ag-cats-' + ctx.id;   // sugestões de categoria para a edição na linha
 
@@ -99,7 +107,7 @@ Containers.registrar('agenda', ctx => {
         h('small', null, DIAS[new Date(x.t[0], x.t[1], x.t[2]).getDay()] + ' · ' + rel(dias)));
       const meta = h('div', 'ag-meta');
       if (x.hora) meta.append(h('span', null, x.hora));
-      if (x.cat) meta.append(h('span', 'ag-tag', x.cat));
+      if (x.cat) meta.append(etiqueta(x.cat));
       const corpo = h('div'); corpo.append(h('div', 'ag-desc', x.desc), meta);
       const chk = h('button', 'ag-chk', '✓'); chk.type = 'button'; chk.title = x.feita ? 'Concluído (clique para desmarcar)' : 'Marcar como concluído'; chk.setAttribute('aria-label', chk.title); chk.setAttribute('aria-pressed', String(x.feita));
       li.append(data, corpo, chk);
@@ -247,7 +255,9 @@ Containers.registrar('agenda', ctx => {
     if (ed) { ed = null; render(); }                                   // outra edição aberta: cancela e refaz a lista
     const f = criarForm(x); ed = { x, f };
     const dl = raiz.querySelector('datalist');
-    dl.replaceChildren(...[...new Set(['Imp', 'Outros', ...est.itens.map(i => i.cat).filter(Boolean)])].map(c => new Option('', c)));
+    // sugestões: as categorias que você criou + as que já estão na agenda; sem nenhuma criada, a lista de sempre
+    const usadas = est.itens.map(i => i.cat).filter(Boolean), propria = Categorias.temPropria();
+    dl.replaceChildren(...(propria ? Categorias.sugestoes(usadas) : [...new Set(['Imp', 'Outros', ...usadas])]).map(c => new Option('', c)));
     if (x) { const li = lista.querySelector('[data-uid="' + x.uid + '"]'); if (!li) { ed = null; return; } li.replaceWith(f); }
     else { const m = lista.querySelector('.ag-msg'); if (m) m.remove(); lista.prepend(f); lista.scrollTop = 0; }
     f.querySelector('.ag-f-desc').focus(); f.scrollIntoView({ block: 'nearest' });
@@ -271,7 +281,9 @@ Containers.registrar('agenda', ctx => {
     { chave: 'vermelho', rotulo: 'Data em vermelho até (dias)', tipo: 'numero', min: 0, dica: 'Passou disso, fica amarela; mais longe ainda, verde.' },
     { chave: 'amarelo', rotulo: 'Data em amarelo até (dias)', tipo: 'numero', min: 0 },
     { chave: 'concluidas', rotulo: 'Mostrar também os itens concluídos', tipo: 'caixa' },
-    { chave: 'altura', rotulo: 'Altura máxima da lista', tipo: 'numero', min: 8, max: 80, dica: 'Em rem (1 rem ≈ 16 px). Passou disso, a lista rola.' }
+    { chave: 'altura', rotulo: 'Altura máxima da lista', tipo: 'numero', min: 8, max: 80, dica: 'Em rem (1 rem ≈ 16 px). Passou disso, a lista rola.' },
+    { chave: 'corCategoria', rotulo: 'Cor das categorias nas etiquetas', tipo: 'caixa', dica: 'A etiqueta de cada item usa a cor que você deu à categoria.' },
+    { tipo: 'botao', rotulo: 'Categorias e cores…', acao: () => Categorias.abrirEditor() }
   ];
   q('.ag-engrenagem').onclick = () => Painel.abrir({
     id: 'cfg:' + ctx.id, titulo: a().titulo, subtitulo: 'Agenda · as mudanças valem na hora', alvo: raiz, campos: CAMPOS, valores: a,
@@ -286,6 +298,7 @@ Containers.registrar('agenda', ctx => {
   });
 
   setInterval(() => { render(); rodape(); }, 60000);        // vira o dia sem precisar recarregar
+  document.addEventListener('categorias-mudou', render);    // criou, renomeou ou pintou uma categoria
 
   return {
     raiz,

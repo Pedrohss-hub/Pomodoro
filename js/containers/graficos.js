@@ -4,6 +4,7 @@
    (as mesmas faixas da Agenda: atrasado = preto, vermelho, amarelo, verde). Opções no ⚙ do gráfico: "compromissos" ('auto' liga sozinho se os
    rótulos forem meses | 'sim' | 'nao'), "compromissosMax" (bolinhas por mês, padrão 5; o resto vira +N) e "anoMeses" (ano, quando o rótulo só traz o mês;
    vazio = ano de hoje). O mês vem da data da célula ou do rótulo (jan, janeiro/26, 03/2026, 2026-03). Não lê o Sheets: usa os itens que a Agenda já tem.
+   "compromissosCor" ('prazo' padrão | 'categoria'): com 'categoria' a bolinha leva a cor da categoria (Categorias e cores) e o anel mostra a cor do prazo.
    "mesAbrev" (caixa no ⚙ das barras): mostra o mês abreviado (Jan, Fev…, pelo idioma do navegador) no eixo, se cada barra for um mês; desligado = rótulos de sempre.
    Em cada gráfico de linhas, "frente" ('liq' padrão | 'per') escolhe a linha desenhada por cima.
    Configuração (em js/paginas.js): { titulo, graficos: [lista] } (null = lista padrão; o ⚙ do quadro edita a lista). */
@@ -94,10 +95,11 @@ Containers.registrar('graficos', ctx => {
     itens.slice().sort((x, y) => Date.UTC(...x.t) - Date.UTC(...y.t) || String(x.hora).localeCompare(String(y.hora))).forEach(x => {
       const dias = Math.round((Date.UTC(...x.t) - h0) / 864e5), k = x.t[0] * 12 + x.t[1];
       if (!por.has(k)) por.set(k, []);
-      por.get(k).push({ dia: p2(x.t[2]) + '/' + p2(x.t[1] + 1), nome: x.desc, nivel: dias < 0 ? 0 : dias <= verm ? 1 : dias <= amar ? 2 : 3 });
+      por.get(k).push({ dia: p2(x.t[2]) + '/' + p2(x.t[1] + 1), nome: x.desc, nivel: dias < 0 ? 0 : dias <= verm ? 1 : dias <= amar ? 2 : 3, cat: x.cat || '' });
     });
     const visto = new Set();
     const lista = ks.map(k => { if (k == null || visto.has(k)) return null; visto.add(k); return por.get(k) || null; });
+    lista.porCategoria = g.compromissosCor === 'categoria';
     return lista.some(Boolean) ? lista : null;
   }
   const h = Util.h;
@@ -187,8 +189,10 @@ Containers.registrar('graficos', ctx => {
     if (bol) bol.forEach((l, i) => {
       if (!l) return;
       const cx = ML + gw * (i + .5), ns = mostradas(l);
-      for (let k = 0; k < ns; k++)
-        svg.append(sv('circle', { cx, cy: 4 + rb + k * passoB, r: rb, fill: COR_PRAZO[l[k].nivel], stroke: 'var(--ink)', 'stroke-opacity': 0.45, 'stroke-width': 1, 'data-c': i, 'data-k': k }));
+      for (let k = 0; k < ns; k++) {
+        const cc = bol.porCategoria ? Categorias.cor(l[k].cat) : '';           // cor da categoria (se ligado e se ela tiver cor); o anel guarda a cor do prazo
+        svg.append(sv('circle', { cx, cy: 4 + rb + k * passoB, r: rb, fill: cc || COR_PRAZO[l[k].nivel], stroke: cc ? COR_PRAZO[l[k].nivel] : 'var(--ink)', 'stroke-opacity': cc ? 1 : 0.45, 'stroke-width': cc ? 2 : 1, 'data-c': i, 'data-k': k }));
+      }
       if (l.length > ns) svg.append(sv('text', { x: cx, y: 4 + ns * passoB + 7, 'text-anchor': 'middle', 'font-size': 9, 'font-weight': 700, fill: 'var(--soft)', 'data-c': i }, '+' + (l.length - ns)));
     });
 
@@ -211,8 +215,9 @@ Containers.registrar('graficos', ctx => {
       if (bol && bol[i]) {                                           // compromissos do mês: dd/mm e nome; o da bolinha sob o dedo/mouse fica em negrito
         const sel = ev.target && ev.target.getAttribute ? Number(ev.target.getAttribute('data-k')) : NaN, t3 = h('b', null, 'Compromissos'); t3.style.marginTop = '.3rem'; tip.append(t3);
         bol[i].slice(0, 12).forEach((c, k) => {
-          const l = h('div', 'gf-tip-l'), p = h('i'); p.style.background = COR_PRAZO[c.nivel]; p.style.boxShadow = 'inset 0 0 0 1px rgba(128,128,128,.7)';
-          const tx = h('span', null, c.dia + ' · ' + c.nome); if (k === sel) tx.style.fontWeight = '700';
+          const l = h('div', 'gf-tip-l'), p = h('i'), cc = bol.porCategoria ? Categorias.cor(c.cat) : '';
+          p.style.background = cc || COR_PRAZO[c.nivel]; p.style.boxShadow = cc ? 'inset 0 0 0 2px ' + COR_PRAZO[c.nivel] : 'inset 0 0 0 1px rgba(128,128,128,.7)';
+          const tx = h('span', null, c.dia + ' · ' + c.nome + (cc && c.cat ? ' (' + c.cat + ')' : '')); if (k === sel) tx.style.fontWeight = '700';
           l.append(p, tx); tip.append(l);
         });
         if (bol[i].length > 12) tip.append(h('div', 'gf-tip-l', '+' + (bol[i].length - 12) + ' outros'));
@@ -355,6 +360,7 @@ Containers.registrar('graficos', ctx => {
     if (!c._cards.length) { const p = h('p', 'gf-msg', 'Nenhum gráfico ativo. Use "+ Gráfico".'); c.append(p); }
     c._cards.forEach(x => x.atualizar());
   }
+  document.addEventListener('categorias-mudou', () => { if (visivel()) renderizarTudo(); });   // mudou a cor de uma categoria: as bolinhas se repintam
   document.addEventListener('agenda-atualizada', () => renderizarTudo());   // a agenda chegou ou mudou: remarca os dias
   function renderizarTudo() { if (visivel()) renderizar(grade); rodape(); }
 
@@ -412,6 +418,8 @@ Containers.registrar('graficos', ctx => {
     { chave: 'imp', rotulo: 'Marcar os dias com itens "Imp" da agenda', tipo: 'caixa', mostrarSe: nTipo },
     { chave: 'mesAbrev', rotulo: 'Mostrar o mês abreviado (Jan, Fev…) no eixo', tipo: 'caixa', mostrarSe: v => v.tipo === 'barras', dica: 'Só vale quando cada barra é um mês. O idioma segue o do navegador.' },
     { chave: 'compromissos', rotulo: 'Compromissos da agenda nos meses', tipo: 'selecao', recarrega: true, mostrarSe: v => v.tipo === 'barras', opcoes: [['auto', 'Automático (se as barras forem meses)'], ['sim', 'Ligado'], ['nao', 'Desligado']], dica: 'Bolinhas sobre a barra do mês, na cor do prazo da Agenda (só os pendentes). Passe o mouse ou toque no mês para ver os nomes.' },
+    { chave: 'compromissosCor', rotulo: 'Cor das bolinhas', tipo: 'selecao', mostrarSe: v => v.tipo === 'barras' && v.compromissos !== 'nao', opcoes: [['prazo', 'Cor do prazo (como na Agenda)'], ['categoria', 'Cor da categoria (anel = prazo)']], dica: 'Dê cores às categorias em “Categorias e cores”.' },
+    { tipo: 'botao', rotulo: 'Categorias e cores…', acao: () => Categorias.abrirEditor(), mostrarSe: v => v.tipo === 'barras' && v.compromissos !== 'nao' },
     { chave: 'compromissosMax', rotulo: 'Bolinhas por mês (no máximo)', tipo: 'numero', min: 1, max: 10, mostrarSe: v => v.tipo === 'barras' && v.compromissos !== 'nao', dica: 'O resto aparece como +N; a dica lista todos.' },
     { chave: 'anoMeses', rotulo: 'Ano dos meses (se o rótulo só tiver o mês)', tipo: 'numero', min: 0, mostrarSe: v => v.tipo === 'barras' && v.compromissos !== 'nao', dica: 'Deixe 0 para usar o ano de hoje. Se o rótulo ou a data da célula já trazem o ano, ele vale.' },
     { chave: 'frente', rotulo: 'Linha na frente', tipo: 'selecao', mostrarSe: v => v.tipo === 'linhas', opcoes: [['liq', 'Tempo líquido'], ['per', 'Perdido']], dica: 'Qual linha fica por cima quando as duas se cruzam.' },
@@ -421,7 +429,7 @@ Containers.registrar('graficos', ctx => {
   function editar(g) {
     editandoId = g.id; marcarEditando();
     Painel.abrir({
-      id: 'g:' + g.id, titulo: g.titulo || 'Gráfico', subtitulo: 'Gráfico · as mudanças valem na hora', campos: CAMPOS_G, valores: () => Object.assign({ passo: 60, frente: 'liq', compromissos: 'auto', compromissosMax: 5, anoMeses: 0 }, g),
+      id: 'g:' + g.id, titulo: g.titulo || 'Gráfico', subtitulo: 'Gráfico · as mudanças valem na hora', campos: CAMPOS_G, valores: () => Object.assign({ passo: 60, frente: 'liq', compromissos: 'auto', compromissosMax: 5, anoMeses: 0, compromissosCor: 'prazo' }, g),
       aoMudar(chave, valor) {
         g[chave] = valor;
         if (chave === 'tipo' && valor === 'histograma') { g.aba = cfg.planilha.aba; g.intervalo = intervaloInicio(); g.passo = g.passo || 60; }
