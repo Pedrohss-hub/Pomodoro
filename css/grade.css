@@ -63,6 +63,9 @@
   .pl-legenda { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; font-size: .8rem; color: var(--soft); margin-top: .25rem; }
   .pl-legenda i { display: inline-block; width: .7rem; height: .7rem; border-radius: calc(.2rem * var(--raio)); margin-right: .35rem; vertical-align: -.05rem; }
   .pl-dados .acoes { flex-wrap: wrap; }
+  /* Dados e backup é um container fixo próprio (js/paginas.js, 'grade-dados'), dentro de uma caixa: o vão da área (1rem) é menor que a margem do details (1.25rem).
+     Esta linha devolve a diferença para a página ficar igual à de antes. Sai junto com o container na Etapa 7. */
+  .ct-caixa > .pl-dados { margin-top: calc(.25rem * var(--esp)); }
   .pl-btn { padding: calc(.6rem * var(--btn)) calc(1rem * var(--btn)); border-radius: calc(.6rem * var(--raio)); border: 1.5px solid var(--ink); background: transparent; cursor: pointer; font-weight: 600; font-size: calc(1em * var(--btn)); }
   .pl-btn.pri { background: var(--ink); color: var(--bg); }
   .pl-btn.perigo { border-color: var(--erro); color: var(--erro); }

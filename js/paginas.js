@@ -16,7 +16,8 @@ const PAGINAS = [
   { id: 'grade', titulo: 'Grade', fixa: 'pg-grade', larga: true,
     layouts: [ { id: 'principal', tipo: 'coluna', largura: 'normal' } ],
     containers: [
-      { id: 'grade-fixo', tipo: 'fixo', layout: 'principal', ordem: 1, titulo: 'Planejador de grade', alvo: '#pg-grade', envolver: true }
+      { id: 'grade-fixo', tipo: 'fixo', layout: 'principal', ordem: 1, titulo: 'Planejador de grade', alvo: '#pg-grade', envolver: true, exceto: '.pl-dados' },   // o planejador fica sozinho; Dados e backup é o container abaixo
+      { id: 'grade-dados', tipo: 'fixo', layout: 'principal', ordem: 2, titulo: 'Dados e backup', alvo: '#pg-grade .pl-dados', caixa: true }   // sai desta página na Etapa 7 (vai para as Configurações)
     ] }
 ];
 /* Páginas: "fixa" aponta para uma página escrita no index.html (módulo fixo: Pomodoro, Grade). Sem "fixa", a página é criada
