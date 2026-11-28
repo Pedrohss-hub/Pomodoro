@@ -4,6 +4,7 @@
    (as mesmas faixas da Agenda: atrasado = preto, vermelho, amarelo, verde). Opções no ⚙ do gráfico: "compromissos" ('auto' liga sozinho se os
    rótulos forem meses | 'sim' | 'nao'), "compromissosMax" (bolinhas por mês, padrão 5; o resto vira +N) e "anoMeses" (ano, quando o rótulo só traz o mês;
    vazio = ano de hoje). O mês vem da data da célula ou do rótulo (jan, janeiro/26, 03/2026, 2026-03). Não lê o Sheets: usa os itens que a Agenda já tem.
+   "mesAbrev" (caixa no ⚙ das barras): mostra o mês abreviado (Jan, Fev…, pelo idioma do navegador) no eixo, se cada barra for um mês; desligado = rótulos de sempre.
    Em cada gráfico de linhas, "frente" ('liq' padrão | 'per') escolhe a linha desenhada por cima.
    Configuração (em js/paginas.js): { titulo, graficos: [lista] } (null = lista padrão; o ⚙ do quadro edita a lista). */
 Containers.registrar('graficos', ctx => {
@@ -56,6 +57,27 @@ Containers.registrar('graficos', ctx => {
     if ((r = /^(?:\d{1,2}\/)?(\d{1,2})\/(\d{4})$/.exec(t))) return +r[1] >= 1 && +r[1] <= 12 ? { m: +r[1] - 1, a: +r[2] } : null;     // 03/2026 ou 15/03/2026
     if ((r = /^([a-z]+)\.?(?:\s*(?:de|\/|-)?\s*(\d{2}|\d{4}))?$/.exec(t)) && r[1] in NOMES_MES) return { m: NOMES_MES[r[1]], a: r[2] ? (+r[2] < 100 ? 2000 + +r[2] : +r[2]) : null };   // mar, março, mar/26
     return null;
+  }
+  // Mês abreviado no eixo (opção "mesAbrev" do gráfico): só vale se CADA barra for um mês diferente (data do Sheets, "mar/26", "03/2026" ou "dd/mm" sem ano,
+  // em que o mês é a 2ª parte). O nome vem do idioma do navegador (Intl), com inicial maiúscula e sem ponto. Devolve { rot, dicas } ou null (aí o eixo fica como está).
+  let fmtMes = null;
+  function nomeMesAbrev(m) {
+    if (!fmtMes) {
+      const lang = navigator.language || document.documentElement.lang || undefined;
+      try { fmtMes = new Intl.DateTimeFormat(lang, { month: 'short', timeZone: 'UTC' }); } catch { fmtMes = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' }); }
+    }
+    const t = fmtMes.format(new Date(Date.UTC(2021, m, 15))).replace(/\./g, '').trim();
+    return t.charAt(0).toLocaleUpperCase() + t.slice(1);
+  }
+  function rotulosMeses(linhas) {
+    const ddmm = l => {                                                    // "dd/mm" sem ano: o mês é a 2ª parte
+      const r = /^(\d{1,2})\/(\d{1,2})$/.exec(String(l[0] || '').trim());
+      return r && +r[1] >= 1 && +r[1] <= 31 && +r[2] >= 1 && +r[2] <= 12 ? { m: +r[2] - 1, a: null } : null;
+    };
+    const ks = linhas.map(l => { const r = mesDeLinha(l) || ddmm(l); return r ? (r.a != null ? r.a : 0) * 12 + r.m : null; });
+    if (ks.length < 2 || ks.some(k => k == null) || new Set(ks).size !== ks.length) return null;
+    const rot = ks.map(k => nomeMesAbrev(k % 12));
+    return { rot, dicas: rot.map((r, i) => r + (linhas[i][0] && linhas[i][0] !== r ? ' · ' + linhas[i][0] : '')) };
   }
   // compromissos pendentes por linha (lista de { dia, nome, nivel } ou null); null = este gráfico não mostra compromissos
   function compromissosPorLinha(g, linhas) {
@@ -261,8 +283,10 @@ Containers.registrar('graficos', ctx => {
         return aviso('Não consegui interpretar os tempos de ' + g.aba + '!' + g.intervalo + ' (esperado: rótulo, tempo líquido, perdido)' + (d.amostra ? '. Primeiras linhas lidas: ' + d.amostra.map(l => l.join(' | ')).join(' / ') : '') + '.', true);
       const linhas = d.linhas.slice();
       while (linhas.length && linhas[0][1] == null && linhas[0][2] == null) linhas.shift();   // ignora cabeçalho
-      const rot = linhas.map(l => (g.diaSemana && diaSem(l)) || l[0] || '');
-      const dicas = g.diaSemana ? linhas.map((l, i) => rot[i] + (l[0] && l[0] !== rot[i] ? ' · ' + l[0] : '')) : null;
+      let rot = linhas.map(l => (g.diaSemana && diaSem(l)) || l[0] || '');
+      let dicas = g.diaSemana ? linhas.map((l, i) => rot[i] + (l[0] && l[0] !== rot[i] ? ' · ' + l[0] : '')) : null;
+      const meses = g.mesAbrev && g.tipo === 'barras' ? rotulosMeses(linhas) : null;
+      if (meses) { rot = meses.rot; dicas = meses.dicas; }
       const liq = linhas.map(l => l[1] || 0), per = linhas.map(l => l[2] || 0);
       const ant = d.ant && d.ant.length ? d.ant.map(l => l[1] || 0) : null;
       const series = [{ nome: 'Tempo líquido', chave: 'liq', cor: CORES.liq, valores: liq, oculta: ocultas.has('liq') }];
@@ -386,6 +410,7 @@ Containers.registrar('graficos', ctx => {
     { chave: 'anterior', rotulo: 'Período anterior (opcional)', tipo: 'intervalo', opcional: true, mostrarSe: nTipo, dica: 'Mesmo formato; aparece apagado atrás. Ex.: Q26:S33' },
     { chave: 'diaSemana', rotulo: 'Mostrar o dia da semana (Seg, Ter…) no eixo', tipo: 'caixa', mostrarSe: nTipo, dica: 'A primeira coluna precisa ser uma data.' },
     { chave: 'imp', rotulo: 'Marcar os dias com itens "Imp" da agenda', tipo: 'caixa', mostrarSe: nTipo },
+    { chave: 'mesAbrev', rotulo: 'Mostrar o mês abreviado (Jan, Fev…) no eixo', tipo: 'caixa', mostrarSe: v => v.tipo === 'barras', dica: 'Só vale quando cada barra é um mês. O idioma segue o do navegador.' },
     { chave: 'compromissos', rotulo: 'Compromissos da agenda nos meses', tipo: 'selecao', recarrega: true, mostrarSe: v => v.tipo === 'barras', opcoes: [['auto', 'Automático (se as barras forem meses)'], ['sim', 'Ligado'], ['nao', 'Desligado']], dica: 'Bolinhas sobre a barra do mês, na cor do prazo da Agenda (só os pendentes). Passe o mouse ou toque no mês para ver os nomes.' },
     { chave: 'compromissosMax', rotulo: 'Bolinhas por mês (no máximo)', tipo: 'numero', min: 1, max: 10, mostrarSe: v => v.tipo === 'barras' && v.compromissos !== 'nao', dica: 'O resto aparece como +N; a dica lista todos.' },
     { chave: 'anoMeses', rotulo: 'Ano dos meses (se o rótulo só tiver o mês)', tipo: 'numero', min: 0, mostrarSe: v => v.tipo === 'barras' && v.compromissos !== 'nao', dica: 'Deixe 0 para usar o ano de hoje. Se o rótulo ou a data da célula já trazem o ano, ele vale.' },
