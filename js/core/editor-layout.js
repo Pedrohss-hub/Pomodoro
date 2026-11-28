@@ -10,7 +10,7 @@
    Em tela pequena ele não abre sozinho (a folha cobre parte da página, sem empurrá-la). Fechou o painel? O botão "⚙ Layouts" (canto de baixo, à esquerda) ou o nome do layout ("Layout: nome ⚙") abrem de novo.
 
    Como usar: nada a chamar. Basta carregar este arquivo depois de roteador.js e antes de paginas.js (que chama Roteador.iniciar).
-   Ele se registra com Roteador.acaoDePagina e o botão aparece sozinho, na barra da página, só onde há 2+ containers ligados.
+   Ele se registra com Roteador.acaoDePagina e o botão aparece sozinho, na barra da página, só onde há 1+ container ligado.
    Por que assim: "Editar layout" é da PÁGINA, não de um container. O Roteador já sabe onde fica a barra (o [data-acoes] do index.html,
    ou uma barra criada por ele) e quais containers estão ligados; o editor só pede um lugar lá e não precisa saber de nada do HTML.
 
@@ -265,7 +265,7 @@ const EditorLayout = (() => {
   }
 
   /* ---------- o botão da barra ---------- */
-  Roteador.acaoDePagina(info => info.itens.length < 2 ? null : {
+  Roteador.acaoDePagina(info => info.itens.length < 1 ? null : {
     rotulo: 'Editar layout', dica: DICA_EDITAR, canto: true, icone: ICONE_EDITAR,
     fazer: () => { if (ed && ed.info.id === info.id) sair(); else entrar(info); },
     botao: b => { botoes.set(info.id, b); b.setAttribute('aria-pressed', 'false'); b.classList.add('el-botao'); }
